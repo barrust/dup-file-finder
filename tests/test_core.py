@@ -2,10 +2,11 @@
 Tests for deduper core functionality.
 """
 
-import unittest
-import tempfile
 import os
 import shutil
+import tempfile
+import unittest
+
 # from pathlib import Path
 from deduper.core import DuplicateFileFinder
 
@@ -164,10 +165,10 @@ class TestDuplicateFileFinder(unittest.TestCase):
         self.finder.scan_directory(scan_dir, recursive=False)
         stats = self.finder.get_statistics()
 
-        self.assertEqual(stats['total_files'], 3)
-        self.assertEqual(stats['duplicate_files'], 2)
-        self.assertEqual(stats['unique_files'], 1)
-        self.assertEqual(stats['duplicate_groups'], 1)
+        self.assertEqual(stats["total_files"], 3)
+        self.assertEqual(stats["duplicate_files"], 2)
+        self.assertEqual(stats["unique_files"], 1)
+        self.assertEqual(stats["duplicate_groups"], 1)
 
     def test_recursive_scan(self):
         """Test recursive directory scanning."""
@@ -199,12 +200,12 @@ class TestDuplicateFileFinder(unittest.TestCase):
 
         self.finder.scan_directory(self.test_dir, recursive=False)
         stats_before = self.finder.get_statistics()
-        self.assertGreater(stats_before['total_files'], 0)
+        self.assertGreater(stats_before["total_files"], 0)
 
         # Clear database
         self.finder.clear_database()
         stats_after = self.finder.get_statistics()
-        self.assertEqual(stats_after['total_files'], 0)
+        self.assertEqual(stats_after["total_files"], 0)
 
     def test_file_extension_storage(self):
         """Test that file extensions are stored correctly."""
@@ -240,5 +241,5 @@ class TestDuplicateFileFinder(unittest.TestCase):
         self.assertEqual(ext_stats[".jpg"]["count"], 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

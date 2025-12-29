@@ -2,8 +2,8 @@
 Core functionality for finding duplicate files.
 """
 
-import os
 import hashlib
+import os
 import sqlite3
 from pathlib import Path
 
@@ -38,12 +38,16 @@ class DuplicateFileFinder:
                 path TEXT NOT NULL UNIQUE,
                 filename TEXT,
                 extension TEXT,
-                hash TEXT NOT NULL,
+                partial_hash TEXT NOT NULL,
+                hash TEXT,
                 size INTEGER NOT NULL,
                 scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_partial_hash_size ON files(partial_hash, size)
+        """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_hash ON files(hash)
         """)
@@ -60,6 +64,21 @@ class DuplicateFileFinder:
 
         conn.commit()
         conn.close()
+
+    def calculate_partial_hash(
+        self, file_path: Path, algorithm: str = "sha256", chunk_size: int = 8192
+    ) -> str:
+        """
+        Calculate the hash of the first chunk_size bytes of a file.
+        """
+        if algorithm == "md5":
+            hasher = hashlib.md5()
+        else:
+            hasher = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            chunk = f.read(chunk_size)
+            hasher.update(chunk)
+        return hasher.hexdigest()
 
     def calculate_file_hash(self, file_path: Path, algorithm: str = "sha256") -> str:
         """
@@ -122,6 +141,11 @@ class DuplicateFileFinder:
                         self._log_unreadable_file(cursor, item, type(e).__name__)
                         continue
         conn.commit()
+
+        # After scanning, update full hashes for candidates
+        self._update_partial_hashes(cursor)
+        conn.commit()
+
         conn.close()
         return files_scanned
 
@@ -133,25 +157,23 @@ class DuplicateFileFinder:
             INSERT INTO unreadable_files (path, error_type)
             VALUES (?, ?)
             """,
-            (abs_path, error_type)
+            (abs_path, error_type),
         )
-
-
 
     def _store_file(self, cursor, file_path: Path):
         """Store file information in the database."""
-        file_hash = self.calculate_file_hash(file_path)
         file_size = file_path.stat().st_size
         abs_path = str(file_path.resolve())
         filename = file_path.stem
         extension = file_path.suffix.lower()
-
+        partial_hash = self.calculate_partial_hash(file_path)
+        # Insert with only partial_hash and size, full hash is NULL for now
         cursor.execute(
             """
-            INSERT OR REPLACE INTO files (path, filename, extension, hash, size)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO files (path, filename, extension, partial_hash, hash, size)
+            VALUES (?, ?, ?, ?, NULL, ?)
             """,
-            (abs_path, filename, extension, file_hash, file_size)
+            (abs_path, filename, extension, partial_hash, file_size),
         )
 
     def find_duplicates(self) -> dict[str, list[str]]:
@@ -164,12 +186,18 @@ class DuplicateFileFinder:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Ensure full hashes are calculated for all candidate groups
+        self._update_partial_hashes(cursor)
+        conn.commit()
+
+        # Now find duplicates by full hash
         cursor.execute("""
             SELECT hash, path
             FROM files
             WHERE hash IN (
                 SELECT hash
                 FROM files
+                WHERE hash IS NOT NULL
                 GROUP BY hash
                 HAVING COUNT(*) > 1
             )
@@ -182,8 +210,40 @@ class DuplicateFileFinder:
                 duplicates[hash_val] = []
             duplicates[hash_val].append(path)
 
+        conn.commit()
         conn.close()
         return duplicates
+
+    def _update_partial_hashes(self, cursor):
+        """
+        Find all (partial_hash, size) groups with more than one file, and for each, compute and store full hashes for files missing them.
+        """
+        cursor.execute(
+            """
+            SELECT partial_hash, size
+            FROM files
+            GROUP BY partial_hash, size
+            HAVING COUNT(*) > 1
+            """
+        )
+        candidates = cursor.fetchall()
+        for partial_hash, size in candidates:
+            cursor.execute(
+                "SELECT path, hash FROM files WHERE partial_hash = ? AND size = ?",
+                (partial_hash, size),
+            )
+            rows = cursor.fetchall()
+            for path, full_hash in rows:
+                if not full_hash:
+                    file_path = Path(path)
+                    try:
+                        computed_hash = self.calculate_file_hash(file_path)
+                        cursor.execute(
+                            "UPDATE files SET hash = ? WHERE path = ?",
+                            (computed_hash, path),
+                        )
+                    except Exception:
+                        continue
 
     def get_duplicate_groups(self) -> list[list[str]]:
         """
@@ -195,7 +255,9 @@ class DuplicateFileFinder:
         duplicates = self.find_duplicates()
         return list(duplicates.values())
 
-    def delete_duplicates(self, keep_first: bool = True, dry_run: bool = True) -> list[str]:
+    def delete_duplicates(
+        self, keep_first: bool = True, dry_run: bool = True
+    ) -> list[str]:
         """
         Delete duplicate files, keeping one copy.
 
@@ -225,7 +287,9 @@ class DuplicateFileFinder:
                     try:
                         if os.path.exists(file_path):
                             os.remove(file_path)
-                            cursor.execute("DELETE FROM files WHERE path = ?", (file_path,))
+                            cursor.execute(
+                                "DELETE FROM files WHERE path = ?", (file_path,)
+                            )
                             deleted_files.append(file_path)
                     except (OSError, PermissionError):
                         # Skip files that can't be deleted
@@ -294,7 +358,7 @@ class DuplicateFileFinder:
             "duplicate_groups": duplicate_groups,
             "duplicate_files": duplicate_files,
             "unique_files": total_files - duplicate_files,
-            "total_size_bytes": total_size
+            "total_size_bytes": total_size,
         }
 
     def get_statistics_by_extension(self) -> dict[str, dict[str, int]]:
@@ -321,10 +385,7 @@ class DuplicateFileFinder:
         for ext, count, total_size in cursor.fetchall():
             # Use empty string as key for files without extension
             key = ext if ext else ""
-            result[key] = {
-                "count": count,
-                "total_size_bytes": total_size or 0
-            }
+            result[key] = {"count": count, "total_size_bytes": total_size or 0}
 
         conn.close()
         return result

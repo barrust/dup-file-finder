@@ -4,13 +4,14 @@ Command-line interface for deduper.
 
 import argparse
 import sys
+
 from .core import DuplicateFileFinder
 
 
 def format_size(size_bytes: int) -> str:
     """Format byte size to human-readable format."""
     size_bytes_float = float(size_bytes)
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_bytes_float < 1024.0:
             return f"{size_bytes_float:.2f} {unit}"
         size_bytes_float /= 1024.0
@@ -25,7 +26,7 @@ def main():
     parser.add_argument(
         "--db",
         default="deduper.db",
-        help="Path to database file (default: deduper.db)"
+        help="Path to database file (default: deduper.db)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -36,7 +37,7 @@ def main():
     scan_parser.add_argument(
         "--no-recursive",
         action="store_true",
-        help="Don't scan subdirectories"
+        help="Don't scan subdirectories",
     )
 
     # Find command
@@ -44,7 +45,7 @@ def main():
     find_parser.add_argument(
         "--show-all",
         action="store_true",
-        help="Show all duplicates (default: show summary)"
+        help="Show all duplicates (default: show summary)",
     )
 
     # Delete command
@@ -52,22 +53,20 @@ def main():
     delete_parser.add_argument(
         "--keep-first",
         action="store_true",
-        help="Keep the first file (alphabetically) - default"
+        help="Keep the first file (alphabetically) - default",
     )
     delete_parser.add_argument(
-        "--keep-last",
-        action="store_true",
-        help="Keep the last file (alphabetically)"
+        "--keep-last", action="store_true", help="Keep the last file (alphabetically)"
     )
     delete_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show what would be deleted without actually deleting - default"
+        help="Show what would be deleted without actually deleting - default",
     )
     delete_parser.add_argument(
         "--confirm",
         action="store_true",
-        help="Actually delete files (disables dry-run)"
+        help="Actually delete files (disables dry-run)",
     )
 
     # Stats command
@@ -75,7 +74,7 @@ def main():
     stats_parser.add_argument(
         "--by-extension",
         action="store_true",
-        help="Show statistics grouped by file extension"
+        help="Show statistics grouped by file extension",
     )
 
     # Clear command
@@ -83,7 +82,7 @@ def main():
     clear_parser.add_argument(
         "--confirm",
         action="store_true",
-        help="Confirm database clearing"
+        help="Confirm database clearing",
     )
 
     args = parser.parse_args()
@@ -155,8 +154,10 @@ def main():
             ext_stats = finder.get_statistics_by_extension()
             for ext, ext_data in ext_stats.items():
                 ext_name = ext if ext else "(no extension)"
-                print(f"  {ext_name}: {ext_data['count']} file(s), "
-                      f"{format_size(ext_data['total_size_bytes'])}")
+                print(
+                    f"  {ext_name}: {ext_data['count']} file(s), "
+                    f"{format_size(ext_data['total_size_bytes'])}"
+                )
 
     elif args.command == "clear":
         if not args.confirm:
