@@ -48,6 +48,16 @@ class DuplicateFileFinder:
             CREATE INDEX IF NOT EXISTS idx_hash ON files(hash)
         """)
 
+        # New table for unreadable files
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS unreadable_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL,
+                error_type TEXT NOT NULL,
+                scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
         conn.close()
 
@@ -74,7 +84,7 @@ class DuplicateFileFinder:
 
         return hasher.hexdigest()
 
-    def scan_directory(self, directory: Path, recursive: bool = True) -> int:
+    def scan_directory(self, directory: Path | str, recursive: bool = True) -> int:
         """
         Scan a directory for files and store their information in the database.
 
@@ -85,6 +95,8 @@ class DuplicateFileFinder:
         Returns:
             Number of files scanned
         """
+        if isinstance(directory, str):
+            directory = Path(directory)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         files_scanned = 0
@@ -96,31 +108,42 @@ class DuplicateFileFinder:
                     try:
                         self._store_file(cursor, file_path)
                         files_scanned += 1
-                    except (OSError, PermissionError):
-                        # Skip files that can't be read
+                    except (OSError, PermissionError) as e:
+                        # Log files that can't be read
+                        self._log_unreadable_file(cursor, file_path, type(e).__name__)
                         continue
         else:
-            for item in os.listdir(directory):
-                file_path = Path(directory) / item
-                if file_path.is_file():
+            for item in directory.iterdir():
+                if item.is_file():
                     try:
-                        self._store_file(cursor, file_path)
+                        self._store_file(cursor, item)
                         files_scanned += 1
-                    except (OSError, PermissionError):
+                    except (OSError, PermissionError) as e:
+                        self._log_unreadable_file(cursor, item, type(e).__name__)
                         continue
-
         conn.commit()
         conn.close()
         return files_scanned
+
+    def _log_unreadable_file(self, cursor, file_path: Path, error_type: str):
+        """Log unreadable file information in the database."""
+        abs_path = str(file_path.resolve())
+        cursor.execute(
+            """
+            INSERT INTO unreadable_files (path, error_type)
+            VALUES (?, ?)
+            """,
+            (abs_path, error_type)
+        )
+
+
 
     def _store_file(self, cursor, file_path: Path):
         """Store file information in the database."""
         file_hash = self.calculate_file_hash(file_path)
         file_size = file_path.stat().st_size
         abs_path = str(file_path.resolve())
-        # Extract file extension (including the dot, e.g., ".txt")
-        # Use empty string if no extension
-        filename = file_path.name
+        filename = file_path.stem
         extension = file_path.suffix.lower()
 
         cursor.execute(
