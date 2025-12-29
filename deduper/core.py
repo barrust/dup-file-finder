@@ -288,7 +288,7 @@ class FileDuplicateFinder:
 
         cursor.execute("""
             SELECT 
-                COALESCE(extension, '(no extension)') as ext,
+                extension,
                 COUNT(*) as count,
                 SUM(size) as total_size
             FROM files
@@ -298,7 +298,9 @@ class FileDuplicateFinder:
 
         result = {}
         for ext, count, total_size in cursor.fetchall():
-            result[ext] = {
+            # Use empty string as key for files without extension
+            key = ext if ext else ""
+            result[key] = {
                 "count": count,
                 "total_size_bytes": total_size or 0
             }
