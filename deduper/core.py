@@ -5,8 +5,7 @@ Core functionality for finding duplicate files.
 import os
 import hashlib
 import sqlite3
-from typing import Dict, List, Set, Optional
-from pathlib import Path
+# from pathlib import Path
 
 
 class DuplicateFileFinder:
@@ -28,7 +27,7 @@ class DuplicateFileFinder:
         """Initialize the SQLite database schema."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,11 +38,11 @@ class DuplicateFileFinder:
                 scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_hash ON files(hash)
         """)
-        
+
         conn.commit()
         conn.close()
 
@@ -114,7 +113,7 @@ class DuplicateFileFinder:
         file_hash = self.calculate_file_hash(file_path)
         file_size = os.path.getsize(file_path)
         abs_path = os.path.abspath(file_path)
-        
+
         # Extract file extension (including the dot, e.g., ".txt")
         # Use empty string if no extension
         extension = os.path.splitext(file_path)[1].lower()
@@ -127,7 +126,7 @@ class DuplicateFileFinder:
             (abs_path, file_hash, file_size, extension)
         )
 
-    def find_duplicates(self) -> Dict[str, List[str]]:
+    def find_duplicates(self) -> dict[str, list[str]]:
         """
         Find all duplicate files in the database.
 
@@ -149,7 +148,7 @@ class DuplicateFileFinder:
             ORDER BY hash, path
         """)
 
-        duplicates = {}
+        duplicates: dict[str, list[str]] = {}
         for hash_val, path in cursor.fetchall():
             if hash_val not in duplicates:
                 duplicates[hash_val] = []
@@ -158,7 +157,7 @@ class DuplicateFileFinder:
         conn.close()
         return duplicates
 
-    def get_duplicate_groups(self) -> List[List[str]]:
+    def get_duplicate_groups(self) -> list[list[str]]:
         """
         Get duplicate files as a list of groups.
 
@@ -168,7 +167,7 @@ class DuplicateFileFinder:
         duplicates = self.find_duplicates()
         return list(duplicates.values())
 
-    def delete_duplicates(self, keep_first: bool = True, dry_run: bool = True) -> List[str]:
+    def delete_duplicates(self, keep_first: bool = True, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files, keeping one copy.
 
@@ -187,7 +186,7 @@ class DuplicateFileFinder:
 
         for hash_val, file_list in duplicates.items():
             sorted_files = sorted(file_list)
-            
+
             if keep_first:
                 files_to_delete = sorted_files[1:]
             else:
@@ -220,7 +219,7 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def get_statistics(self) -> Dict[str, int]:
+    def get_statistics(self) -> dict[str, int]:
         """
         Get statistics about scanned files and duplicates.
 
@@ -270,7 +269,7 @@ class DuplicateFileFinder:
             "total_size_bytes": total_size
         }
 
-    def get_statistics_by_extension(self) -> Dict[str, Dict[str, int]]:
+    def get_statistics_by_extension(self) -> dict[str, dict[str, int]]:
         """
         Get statistics grouped by file extension.
 
@@ -281,7 +280,7 @@ class DuplicateFileFinder:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT 
+            SELECT
                 extension,
                 COUNT(*) as count,
                 SUM(size) as total_size
