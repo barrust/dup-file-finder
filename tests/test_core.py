@@ -239,20 +239,6 @@ class TestFileDuplicateFinder(unittest.TestCase):
         self.assertEqual(ext_stats[".txt"]["count"], 1)
         self.assertEqual(ext_stats[".jpg"]["count"], 1)
 
-    def test_extension_migration(self):
-        """Test that existing databases are migrated to include extension column."""
-        # This is tested by the initialization itself
-        # If migration fails, other tests would fail
-        # Just verify the column exists
-        import sqlite3
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(files)")
-        columns = [row[1] for row in cursor.fetchall()]
-        conn.close()
-        
-        self.assertIn("extension", columns)
-
 
 if __name__ == '__main__':
     unittest.main()

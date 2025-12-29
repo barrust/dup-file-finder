@@ -44,12 +44,6 @@ class FileDuplicateFinder:
             CREATE INDEX IF NOT EXISTS idx_hash ON files(hash)
         """)
         
-        # Migration: Add extension column to existing tables
-        cursor.execute("PRAGMA table_info(files)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if "extension" not in columns:
-            cursor.execute("ALTER TABLE files ADD COLUMN extension TEXT")
-        
         conn.commit()
         conn.close()
 

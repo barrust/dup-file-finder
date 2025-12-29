@@ -156,7 +156,7 @@ The database stores:
 - File extensions (for filtering and statistics)
 - Scan timestamps
 
-The database schema includes automatic migration support, so existing databases will be upgraded to include the extension column when opened with newer versions.
+**Note:** If you have an existing database from an earlier version without the extension column, you'll need to rebuild it by clearing and rescanning your files.
 
 ## Safety Features
 
