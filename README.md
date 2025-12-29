@@ -176,6 +176,14 @@ The database stores:
 - **Error handling** for inaccessible files
 - **Database transactions** for data integrity
 
+## Example Usage
+
+See `example.py` for a complete working example. Run it with:
+
+```bash
+python example.py
+```
+
 ## License
 
 MIT License - see LICENSE file for details.
