@@ -13,7 +13,7 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    __slots__ = ("db_path", "bulk_size")
+    __slots__ = ('db_path', 'bulk_size')
 
     db_path: Path
     bulk_size: int
@@ -30,7 +30,7 @@ class DuplicateFileFinder:
             db_path = Path(db_path)
         self.db_path = db_path
         self.bulk_size = bulk_size
-        self._init_database()
+        self._init_database() 
 
     def _init_database(self):
         """Initialize the SQLite database schema."""
