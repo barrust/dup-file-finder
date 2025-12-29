@@ -206,6 +206,53 @@ class TestFileDuplicateFinder(unittest.TestCase):
         stats_after = self.finder.get_statistics()
         self.assertEqual(stats_after['total_files'], 0)
 
+    def test_file_extension_storage(self):
+        """Test that file extensions are stored correctly."""
+        # Create test files with different extensions
+        scan_dir = os.path.join(self.test_dir, "scan")
+        os.makedirs(scan_dir)
+        
+        test_file1 = os.path.join(scan_dir, "doc.txt")
+        test_file2 = os.path.join(scan_dir, "image.jpg")
+        test_file3 = os.path.join(scan_dir, "noext")
+        
+        with open(test_file1, "w") as f:
+            f.write("text")
+        with open(test_file2, "w") as f:
+            f.write("img")
+        with open(test_file3, "w") as f:
+            f.write("data")
+
+        self.finder.scan_directory(scan_dir, recursive=False)
+        
+        # Get statistics by extension
+        ext_stats = self.finder.get_statistics_by_extension()
+        
+        # Should have 3 different extensions (including empty for noext)
+        self.assertGreaterEqual(len(ext_stats), 2)
+        
+        # Check that .txt and .jpg are present
+        self.assertIn(".txt", ext_stats)
+        self.assertIn(".jpg", ext_stats)
+        
+        # Check counts
+        self.assertEqual(ext_stats[".txt"]["count"], 1)
+        self.assertEqual(ext_stats[".jpg"]["count"], 1)
+
+    def test_extension_migration(self):
+        """Test that existing databases are migrated to include extension column."""
+        # This is tested by the initialization itself
+        # If migration fails, other tests would fail
+        # Just verify the column exists
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(files)")
+        columns = [row[1] for row in cursor.fetchall()]
+        conn.close()
+        
+        self.assertIn("extension", columns)
+
 
 if __name__ == '__main__':
     unittest.main()

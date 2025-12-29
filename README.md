@@ -75,6 +75,11 @@ stats = finder.get_statistics()
 print(f"Total files: {stats['total_files']}")
 print(f"Duplicate files: {stats['duplicate_files']}")
 
+# Get statistics by file extension
+ext_stats = finder.get_statistics_by_extension()
+for ext, data in ext_stats.items():
+    print(f"{ext}: {data['count']} files, {data['total_size_bytes']} bytes")
+
 # Delete duplicates (dry run first!)
 deleted = finder.delete_duplicates(keep_first=True, dry_run=True)
 print(f"Would delete: {deleted}")
@@ -123,8 +128,11 @@ Options:
 Display statistics about scanned files.
 
 ```bash
-deduper stats
+deduper stats [--by-extension]
 ```
+
+Options:
+- `--by-extension`: Show statistics grouped by file extension
 
 ### `clear`
 Clear all data from the database.
@@ -145,7 +153,10 @@ The database stores:
 - File paths (absolute paths)
 - File hashes (SHA256 by default)
 - File sizes
+- File extensions (for filtering and statistics)
 - Scan timestamps
+
+The database schema includes automatic migration support, so existing databases will be upgraded to include the extension column when opened with newer versions.
 
 ## Safety Features
 

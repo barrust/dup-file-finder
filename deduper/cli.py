@@ -71,6 +71,11 @@ def main():
 
     # Stats command
     stats_parser = subparsers.add_parser("stats", help="Show statistics")
+    stats_parser.add_argument(
+        "--by-extension",
+        action="store_true",
+        help="Show statistics grouped by file extension"
+    )
 
     # Clear command
     clear_parser = subparsers.add_parser("clear", help="Clear database")
@@ -143,6 +148,14 @@ def main():
         print(f"  Duplicate files: {stats['duplicate_files']}")
         print(f"  Duplicate groups: {stats['duplicate_groups']}")
         print(f"  Total size: {format_size(stats['total_size_bytes'])}")
+        
+        if args.by_extension:
+            print("\nStatistics by file extension:")
+            ext_stats = finder.get_statistics_by_extension()
+            for ext, ext_data in ext_stats.items():
+                ext_name = ext if ext else "(no extension)"
+                print(f"  {ext_name}: {ext_data['count']} file(s), "
+                      f"{format_size(ext_data['total_size_bytes'])}")
 
     elif args.command == "clear":
         if not args.confirm:

@@ -35,6 +35,7 @@ class FileDuplicateFinder:
                 path TEXT NOT NULL UNIQUE,
                 hash TEXT NOT NULL,
                 size INTEGER NOT NULL,
+                extension TEXT,
                 scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -42,6 +43,12 @@ class FileDuplicateFinder:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_hash ON files(hash)
         """)
+        
+        # Migration: Add extension column to existing tables
+        cursor.execute("PRAGMA table_info(files)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "extension" not in columns:
+            cursor.execute("ALTER TABLE files ADD COLUMN extension TEXT")
         
         conn.commit()
         conn.close()
@@ -113,13 +120,17 @@ class FileDuplicateFinder:
         file_hash = self.calculate_file_hash(file_path)
         file_size = os.path.getsize(file_path)
         abs_path = os.path.abspath(file_path)
+        
+        # Extract file extension (including the dot, e.g., ".txt")
+        # Use empty string if no extension
+        extension = os.path.splitext(file_path)[1].lower()
 
         cursor.execute(
             """
-            INSERT OR REPLACE INTO files (path, hash, size)
-            VALUES (?, ?, ?)
+            INSERT OR REPLACE INTO files (path, hash, size, extension)
+            VALUES (?, ?, ?, ?)
             """,
-            (abs_path, file_hash, file_size)
+            (abs_path, file_hash, file_size, extension)
         )
 
     def find_duplicates(self) -> Dict[str, List[str]]:
@@ -264,3 +275,33 @@ class FileDuplicateFinder:
             "unique_files": total_files - duplicate_files,
             "total_size_bytes": total_size
         }
+
+    def get_statistics_by_extension(self) -> Dict[str, Dict[str, int]]:
+        """
+        Get statistics grouped by file extension.
+
+        Returns:
+            Dictionary mapping extension to statistics (count, total_size)
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT 
+                COALESCE(extension, '(no extension)') as ext,
+                COUNT(*) as count,
+                SUM(size) as total_size
+            FROM files
+            GROUP BY extension
+            ORDER BY count DESC
+        """)
+
+        result = {}
+        for ext, count, total_size in cursor.fetchall():
+            result[ext] = {
+                "count": count,
+                "total_size_bytes": total_size or 0
+            }
+
+        conn.close()
+        return result
