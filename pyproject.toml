@@ -10,9 +10,14 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Tyler Barrus" }]
 classifiers = [
-    "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = []
 dynamic = ["version"]
@@ -30,8 +35,25 @@ Homepage = "https://github.com/barrust/deduper"
 Repository = "https://github.com/barrust/deduper"
 Bug-tracker = "https://github.com/barrust/deduper/issues"
 
+[tool.pep8]
+max-line-length = 120
+
+[tool.pycodestyle]
+max-line-length = 120
+
+[tool.flake8]
+max-line-length = 120
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 120
+target-version = ['py310']
+include = '\.pyi?$'
+
 [tool.ruff]
-include = ["pyproject.toml", "probables/**/*.py", "probables/*.py"]
+include = ["pyproject.toml", "deduper/**/*.py", "deduper/*.py"]
 exclude = [
     ".bzr",
     ".direnv",
@@ -64,7 +86,7 @@ exclude = [
 # Same as Black.
 line-length = 120
 indent-width = 4
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
