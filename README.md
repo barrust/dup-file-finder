@@ -8,7 +8,6 @@ A Python library to find and manage duplicate files. Deduper scans directories, 
 - 💾 **SQLite database** for storing file information
 - 🗑️ **Safe deletion** with dry-run mode and confirmation prompts
 - 🖥️ **Command-line interface** for easy automation
-- 🌐 **Web-based UI** for visual management
 - 📊 **Statistics** about scanned files and duplicates
 
 ## Installation
@@ -53,15 +52,6 @@ deduper delete --dry-run
 ```bash
 deduper delete --confirm
 ```
-
-### Using the Web UI
-
-Start the web interface:
-```bash
-deduper web
-```
-
-Then open your browser to `http://127.0.0.1:5000`
 
 ### Using as a Library
 
@@ -142,17 +132,6 @@ Clear all data from the database.
 ```bash
 deduper clear --confirm
 ```
-
-### `web`
-Start the web interface.
-
-```bash
-deduper web [--host HOST] [--port PORT]
-```
-
-Options:
-- `--host`: Host to bind to (default: 127.0.0.1)
-- `--port`: Port to bind to (default: 5000)
 
 ## Database
 

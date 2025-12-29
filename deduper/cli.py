@@ -80,20 +80,6 @@ def main():
         help="Confirm database clearing"
     )
 
-    # Web UI command
-    web_parser = subparsers.add_parser("web", help="Start web interface")
-    web_parser.add_argument(
-        "--host",
-        default="127.0.0.1",
-        help="Host to bind to (default: 127.0.0.1)"
-    )
-    web_parser.add_argument(
-        "--port",
-        type=int,
-        default=5000,
-        help="Port to bind to (default: 5000)"
-    )
-
     args = parser.parse_args()
 
     if not args.command:
@@ -166,12 +152,6 @@ def main():
         
         finder.clear_database()
         print("Database cleared")
-
-    elif args.command == "web":
-        from .web import create_app
-        app = create_app(finder)
-        print(f"Starting web interface at http://{args.host}:{args.port}")
-        app.run(host=args.host, port=args.port, debug=False)
 
 
 if __name__ == "__main__":
