@@ -20,6 +20,6 @@ jobs:
           commit-message: "style: auto-fix with ruff"
           title: "style: auto-fix with ruff"
           body: "This PR applies automatic code style fixes using Ruff."
-          branch: ${{ github.head_ref }}
+        #   branch: ${{ github.head_ref }}
           base: ${{ github.head_ref }}
           delete-branch: false
