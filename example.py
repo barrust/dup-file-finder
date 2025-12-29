@@ -5,7 +5,7 @@ Example usage of the deduper library.
 This script demonstrates how to use deduper programmatically.
 """
 
-from deduper import FileDuplicateFinder
+from deduper import DuplicateFileFinder
 import os
 import tempfile
 import shutil
@@ -51,8 +51,8 @@ def main():
         print(f"   Created 5 files in {files_dir}")
         
         # Initialize the deduper
-        print("\n2. Initializing FileDuplicateFinder...")
-        finder = FileDuplicateFinder(db_path=db_path)
+        print("\n2. Initializing DuplicateFileFinder...")
+        finder = DuplicateFileFinder(db_path=db_path)
         print(f"   Database: {db_path}")
         
         # Scan the directory

@@ -9,14 +9,14 @@ from typing import Dict, List, Set, Optional
 from pathlib import Path
 
 
-class FileDuplicateFinder:
+class DuplicateFileFinder:
     """
     A class to find and manage duplicate files.
     """
 
     def __init__(self, db_path: str = "deduper.db"):
         """
-        Initialize the FileDuplicateFinder.
+        Initialize the DuplicateFileFinder.
 
         Args:
             db_path: Path to the SQLite database file

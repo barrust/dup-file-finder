@@ -4,7 +4,7 @@ Command-line interface for deduper.
 
 import argparse
 import sys
-from .core import FileDuplicateFinder
+from .core import DuplicateFileFinder
 
 
 def format_size(size_bytes: int) -> str:
@@ -91,7 +91,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    finder = FileDuplicateFinder(db_path=args.db)
+    finder = DuplicateFileFinder(db_path=args.db)
 
     if args.command == "scan":
         print(f"Scanning directory: {args.directory}")

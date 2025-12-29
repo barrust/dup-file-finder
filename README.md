@@ -56,10 +56,10 @@ deduper delete --confirm
 ### Using as a Library
 
 ```python
-from deduper import FileDuplicateFinder
+from deduper import DuplicateFileFinder
 
 # Initialize the finder
-finder = FileDuplicateFinder(db_path="my_duplicates.db")
+finder = DuplicateFileFinder(db_path="my_duplicates.db")
 
 # Scan a directory
 count = finder.scan_directory("/path/to/directory", recursive=True)

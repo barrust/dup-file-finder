@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deduper",
-    version="0.1.0",
+    version="0.0.1",
     author="Tyler Barrus",
     description="A Python library to find and manage duplicate files",
     long_description=long_description,

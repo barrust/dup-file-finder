@@ -7,17 +7,17 @@ import tempfile
 import os
 import shutil
 from pathlib import Path
-from deduper.core import FileDuplicateFinder
+from deduper.core import DuplicateFileFinder
 
 
-class TestFileDuplicateFinder(unittest.TestCase):
-    """Test cases for FileDuplicateFinder class."""
+class TestDuplicateFileFinder(unittest.TestCase):
+    """Test cases for DuplicateFileFinder class."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.test_dir = tempfile.mkdtemp()
         self.db_path = os.path.join(self.test_dir, "test.db")
-        self.finder = FileDuplicateFinder(db_path=self.db_path)
+        self.finder = DuplicateFileFinder(db_path=self.db_path)
 
     def tearDown(self):
         """Clean up test fixtures."""
