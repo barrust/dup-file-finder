@@ -98,7 +98,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
         self.assertEqual(len(duplicates), 1)
 
         # Should have both files in the group
-        for hash_val, files in duplicates.items():
+        for _, files in duplicates.items():
             self.assertEqual(len(files), 2)
 
     def test_delete_duplicates_dry_run(self):

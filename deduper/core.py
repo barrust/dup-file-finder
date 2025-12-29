@@ -13,18 +13,23 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    db_path: Path
+    __slots__ = ("db_path", "bulk_size")
 
-    def __init__(self, db_path: Path | str = "deduper.db"):
+    db_path: Path
+    bulk_size: int
+
+    def __init__(self, bulk_size: int = 1000, db_path: Path | str = "deduper.db"):
         """
         Initialize the DuplicateFileFinder.
 
         Args:
+            bulk_size: Number of files to process before committing to the database
             db_path: Path to the SQLite database file
         """
         if isinstance(db_path, str):
             db_path = Path(db_path)
         self.db_path = db_path
+        self.bulk_size = bulk_size
         self._init_database()
 
     def _init_database(self):
@@ -35,18 +40,18 @@ class DuplicateFileFinder:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                path TEXT NOT NULL UNIQUE,
-                filename TEXT,
-                extension TEXT,
-                partial_hash TEXT NOT NULL,
-                hash TEXT,
-                size INTEGER NOT NULL,
+                path TEXT NOT NULL UNIQUE, -- unique, absolute file path
+                filename TEXT, -- file name without path or extension
+                extension TEXT, -- file extension
+                partial_hash TEXT NOT NULL, -- hash of the first chunk of the file
+                hash TEXT, -- full file hash, if needed
+                size INTEGER NOT NULL, -- file size in bytes
                 scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_partial_hash_size ON files(partial_hash, size)
+            CREATE INDEX IF NOT EXISTS idx_partial_hash_and_size ON files(partial_hash, size)
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_hash ON files(hash)
@@ -56,8 +61,8 @@ class DuplicateFileFinder:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS unreadable_files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                path TEXT NOT NULL,
-                error_type TEXT NOT NULL,
+                path TEXT NOT NULL, -- absolute file path
+                error_type TEXT NOT NULL, -- type of error encountered
                 scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -65,16 +70,11 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def calculate_partial_hash(
-        self, file_path: Path, algorithm: str = "sha256", chunk_size: int = 8192
-    ) -> str:
+    def calculate_partial_hash(self, file_path: Path, algorithm: str = "sha256", chunk_size: int = 8192) -> str:
         """
         Calculate the hash of the first chunk_size bytes of a file.
         """
-        if algorithm == "md5":
-            hasher = hashlib.md5()
-        else:
-            hasher = hashlib.sha256()
+        hasher = hashlib.md5() if algorithm == "md5" else hashlib.sha256()
         with open(file_path, "rb") as f:
             chunk = f.read(chunk_size)
             hasher.update(chunk)
@@ -91,10 +91,7 @@ class DuplicateFileFinder:
         Returns:
             Hexadecimal hash string
         """
-        if algorithm == "md5":
-            hasher = hashlib.md5()
-        else:
-            hasher = hashlib.sha256()
+        hasher = hashlib.md5() if algorithm == "md5" else hashlib.sha256()
 
         with open(file_path, "rb") as f:
             # Read file in chunks to handle large files
@@ -127,6 +124,10 @@ class DuplicateFileFinder:
                     try:
                         self._store_file(cursor, file_path)
                         files_scanned += 1
+
+                        if files_scanned % self.bulk_size == 0:
+                            conn.commit()
+
                     except (OSError, PermissionError) as e:
                         # Log files that can't be read
                         self._log_unreadable_file(cursor, file_path, type(e).__name__)
@@ -216,7 +217,8 @@ class DuplicateFileFinder:
 
     def _update_partial_hashes(self, cursor):
         """
-        Find all (partial_hash, size) groups with more than one file, and for each, compute and store full hashes for files missing them.
+        Find all (partial_hash, size) groups with more than one file, and for each,
+        compute and store full hashes for files missing them.
         """
         cursor.execute(
             """
@@ -255,9 +257,7 @@ class DuplicateFileFinder:
         duplicates = self.find_duplicates()
         return list(duplicates.values())
 
-    def delete_duplicates(
-        self, keep_first: bool = True, dry_run: bool = True
-    ) -> list[str]:
+    def delete_duplicates(self, keep_first: bool = True, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files, keeping one copy.
 
@@ -274,22 +274,17 @@ class DuplicateFileFinder:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        for hash_val, file_list in duplicates.items():
+        for _, file_list in duplicates.items():
             sorted_files = sorted(file_list)
 
-            if keep_first:
-                files_to_delete = sorted_files[1:]
-            else:
-                files_to_delete = sorted_files[:-1]
+            files_to_delete = sorted_files[1:] if keep_first else sorted_files[:-1]
 
             for file_path in files_to_delete:
                 if not dry_run:
                     try:
                         if os.path.exists(file_path):
                             os.remove(file_path)
-                            cursor.execute(
-                                "DELETE FROM files WHERE path = ?", (file_path,)
-                            )
+                            cursor.execute("DELETE FROM files WHERE path = ?", (file_path,))
                             deleted_files.append(file_path)
                     except (OSError, PermissionError):
                         # Skip files that can't be deleted
