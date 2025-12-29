@@ -5,7 +5,7 @@ Core functionality for finding duplicate files.
 import os
 import hashlib
 import sqlite3
-# from pathlib import Path
+from pathlib import Path
 
 
 class DuplicateFileFinder:
@@ -13,13 +13,17 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    def __init__(self, db_path: str = "deduper.db"):
+    db_path: Path
+
+    def __init__(self, db_path: Path | str = "deduper.db"):
         """
         Initialize the DuplicateFileFinder.
 
         Args:
             db_path: Path to the SQLite database file
         """
+        if isinstance(db_path, str):
+            db_path = Path(db_path)
         self.db_path = db_path
         self._init_database()
 
@@ -32,9 +36,10 @@ class DuplicateFileFinder:
             CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 path TEXT NOT NULL UNIQUE,
+                filename TEXT,
+                extension TEXT,
                 hash TEXT NOT NULL,
                 size INTEGER NOT NULL,
-                extension TEXT,
                 scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -46,7 +51,7 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def calculate_file_hash(self, file_path: str, algorithm: str = "sha256") -> str:
+    def calculate_file_hash(self, file_path: Path, algorithm: str = "sha256") -> str:
         """
         Calculate the hash of a file.
 
@@ -69,7 +74,7 @@ class DuplicateFileFinder:
 
         return hasher.hexdigest()
 
-    def scan_directory(self, directory: str, recursive: bool = True) -> int:
+    def scan_directory(self, directory: Path, recursive: bool = True) -> int:
         """
         Scan a directory for files and store their information in the database.
 
@@ -87,7 +92,7 @@ class DuplicateFileFinder:
         if recursive:
             for root, _, files in os.walk(directory):
                 for file in files:
-                    file_path = os.path.join(root, file)
+                    file_path = Path(root) / file
                     try:
                         self._store_file(cursor, file_path)
                         files_scanned += 1
@@ -96,8 +101,8 @@ class DuplicateFileFinder:
                         continue
         else:
             for item in os.listdir(directory):
-                file_path = os.path.join(directory, item)
-                if os.path.isfile(file_path):
+                file_path = Path(directory) / item
+                if file_path.is_file():
                     try:
                         self._store_file(cursor, file_path)
                         files_scanned += 1
@@ -108,22 +113,22 @@ class DuplicateFileFinder:
         conn.close()
         return files_scanned
 
-    def _store_file(self, cursor, file_path: str):
+    def _store_file(self, cursor, file_path: Path):
         """Store file information in the database."""
         file_hash = self.calculate_file_hash(file_path)
-        file_size = os.path.getsize(file_path)
-        abs_path = os.path.abspath(file_path)
-
+        file_size = file_path.stat().st_size
+        abs_path = str(file_path.resolve())
         # Extract file extension (including the dot, e.g., ".txt")
         # Use empty string if no extension
-        extension = os.path.splitext(file_path)[1].lower()
+        filename = file_path.name
+        extension = file_path.suffix.lower()
 
         cursor.execute(
             """
-            INSERT OR REPLACE INTO files (path, hash, size, extension)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO files (path, filename, extension, hash, size)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (abs_path, file_hash, file_size, extension)
+            (abs_path, filename, extension, file_hash, file_size)
         )
 
     def find_duplicates(self) -> dict[str, list[str]]:
