@@ -9,11 +9,12 @@ from .core import DuplicateFileFinder
 
 def format_size(size_bytes: int) -> str:
     """Format byte size to human-readable format."""
+    size_bytes_float = float(size_bytes)
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.2f} PB"
+        if size_bytes_float < 1024.0:
+            return f"{size_bytes_float:.2f} {unit}"
+        size_bytes_float /= 1024.0
+    return f"{size_bytes_float:.2f} PB"
 
 
 def main():
@@ -120,7 +121,7 @@ def main():
         keep_first = not args.keep_last
         # Default to dry_run unless confirm is specified
         dry_run = not args.confirm
-        
+
         if dry_run:
             print("DRY RUN MODE - No files will be deleted")
             print("Use --confirm to actually delete files")
@@ -132,7 +133,7 @@ def main():
                 sys.exit(0)
 
         deleted = finder.delete_duplicates(keep_first=keep_first, dry_run=dry_run)
-        
+
         if deleted:
             print(f"\n{'Would delete' if dry_run else 'Deleted'} {len(deleted)} files:")
             for file in deleted:
@@ -148,7 +149,7 @@ def main():
         print(f"  Duplicate files: {stats['duplicate_files']}")
         print(f"  Duplicate groups: {stats['duplicate_groups']}")
         print(f"  Total size: {format_size(stats['total_size_bytes'])}")
-        
+
         if args.by_extension:
             print("\nStatistics by file extension:")
             ext_stats = finder.get_statistics_by_extension()
@@ -162,7 +163,7 @@ def main():
             print("This will clear all data from the database")
             print("Use --confirm to proceed")
             sys.exit(1)
-        
+
         finder.clear_database()
         print("Database cleared")
 
