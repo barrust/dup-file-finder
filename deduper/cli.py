@@ -51,7 +51,6 @@ def main():
     delete_parser.add_argument(
         "--keep-first",
         action="store_true",
-        default=True,
         help="Keep the first file (alphabetically) - default"
     )
     delete_parser.add_argument(
@@ -62,7 +61,6 @@ def main():
     delete_parser.add_argument(
         "--dry-run",
         action="store_true",
-        default=True,
         help="Show what would be deleted without actually deleting - default"
     )
     delete_parser.add_argument(
@@ -127,7 +125,9 @@ def main():
                 print("Use --show-all to see all duplicate files")
 
     elif args.command == "delete":
+        # Default to keep_first unless keep_last is specified
         keep_first = not args.keep_last
+        # Default to dry_run unless confirm is specified
         dry_run = not args.confirm
         
         if dry_run:

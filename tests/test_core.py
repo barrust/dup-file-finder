@@ -197,7 +197,7 @@ class TestFileDuplicateFinder(unittest.TestCase):
         with open(test_file, "w") as f:
             f.write("Content")
 
-        self.finder.scan_directory(self.test_dir)
+        self.finder.scan_directory(self.test_dir, recursive=False)
         stats_before = self.finder.get_statistics()
         self.assertGreater(stats_before['total_files'], 0)
 
