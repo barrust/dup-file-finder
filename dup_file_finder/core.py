@@ -302,6 +302,7 @@ class DuplicateFileFinder:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM files")
+        cursor.execute("DELETE FROM unreadable_files")
         conn.commit()
         conn.close()
 
@@ -383,3 +384,78 @@ class DuplicateFileFinder:
 
         conn.close()
         return result
+
+
+class DuplicateGroup:
+    """
+    Represents a group of duplicate files.
+    """
+
+    __slots__ = ("hash", "file_size", "file_paths")
+
+    hash: str
+    file_paths: list[str]
+    file_size: int
+
+    def __init__(self, hash: str, file_size: int, file_paths: list[str]):
+        self.hash = hash
+        self.file_size = file_size
+        self.file_paths = file_paths
+
+    def __len__(self) -> int:
+        return len(self.file_paths)
+
+    def __iter__(self):
+        return iter(self.file_paths)
+
+    def __getitem__(self, index: int) -> str:
+        return self.file_paths[index]
+
+    def __repr__(self) -> str:
+        return f"DuplicateGroup(hash={self.hash}, files={len(self.file_paths)})"
+
+    def total_size(self) -> int:
+        """Calculate the total size of all files in the group."""
+        return self.file_size * len(self.file_paths)
+
+    def wasted_space(self) -> int:
+        """Calculate the wasted space due to duplicates (excluding one copy)."""
+        return self.file_size * (len(self.file_paths) - 1)
+
+    # TODO: The order of the files list could be changed... we may need to adjust keep logic
+    def delete_duplicates_by_idx(self, keep_idx: int, dry_run: bool = True) -> list[str]:
+        """
+        Delete duplicate files in the group, keeping one specified by index.
+
+        Args:
+            keep_idx: Index of the file to keep
+            dry_run: If True, only return files that would be deleted without deleting
+        Returns:
+            List of file paths that were (or would be) deleted
+        """
+        keep_path = self.file_paths[keep_idx]
+        return self.delete_duplicates(keep_path, dry_run)
+
+    def delete_duplicates(self, keep_path: str, dry_run: bool = True) -> list[str]:
+        """
+        Delete duplicate files in the group, keeping the specified file path.
+
+        Args:
+            keep_path: File path to keep
+            dry_run: If True, only return files that would be deleted without deleting
+        Returns:
+            List of file paths that were (or would be) deleted
+        """
+        deleted_files = []
+        for file_path in self.file_paths:
+            if file_path != keep_path:
+                if not dry_run:
+                    try:
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                            deleted_files.append(file_path)
+                    except (OSError, PermissionError):
+                        continue
+                else:
+                    deleted_files.append(file_path)
+        return deleted_files
