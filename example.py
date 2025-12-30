@@ -105,9 +105,7 @@ def main():
         print("   File types found:")
         for ext, data in ext_stats.items():
             ext_name = ext if ext else "(no extension)"
-            print(
-                f"     {ext_name}: {data['count']} file(s), {data['total_size_bytes']} bytes"
-            )
+            print(f"     {ext_name}: {data['count']} file(s), {data['total_size_bytes']} bytes")
 
         print("\n" + "=" * 60)
         print("Demo completed successfully!")

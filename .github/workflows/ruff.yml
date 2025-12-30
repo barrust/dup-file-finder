@@ -1,0 +1,31 @@
+name: Ruff
+on: [push]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Run Ruff and auto-fix
+        run: |
+          pip install ruff
+          ruff check . --fix
+          ruff format .
+      - name: Commit and push Ruff fixes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "style: auto-fix with ruff"
+          add: "."
+          default_author: github_actions
+          push: true
+          fetch: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

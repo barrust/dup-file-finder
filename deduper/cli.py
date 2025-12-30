@@ -20,9 +20,7 @@ def format_size(size_bytes: int) -> str:
 
 def main():
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Deduper - Find and manage duplicate files"
-    )
+    parser = argparse.ArgumentParser(description="Deduper - Find and manage duplicate files")
     parser.add_argument(
         "--db",
         default="deduper.db",
@@ -55,9 +53,7 @@ def main():
         action="store_true",
         help="Keep the first file (alphabetically) - default",
     )
-    delete_parser.add_argument(
-        "--keep-last", action="store_true", help="Keep the last file (alphabetically)"
-    )
+    delete_parser.add_argument("--keep-last", action="store_true", help="Keep the last file (alphabetically)")
     delete_parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -154,10 +150,7 @@ def main():
             ext_stats = finder.get_statistics_by_extension()
             for ext, ext_data in ext_stats.items():
                 ext_name = ext if ext else "(no extension)"
-                print(
-                    f"  {ext_name}: {ext_data['count']} file(s), "
-                    f"{format_size(ext_data['total_size_bytes'])}"
-                )
+                print(f"  {ext_name}: {ext_data['count']} file(s), {format_size(ext_data['total_size_bytes'])}")
 
     elif args.command == "clear":
         if not args.confirm:
