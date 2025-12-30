@@ -1,5 +1,8 @@
 name: Ruff
 on: [pull_request]
+permissions:
+  contents: write
+  pull-requests: write
 jobs:
   build:
     runs-on: ubuntu-latest
