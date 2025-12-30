@@ -1,6 +1,6 @@
-# Deduper
+# Duplicate File Finder
 
-A Python library to find and manage duplicate files. Deduper scans directories, identifies duplicate files using hash algorithms, stores the information in a SQLite database, and provides tools to manage and delete duplicates.
+A Python library to find and manage duplicate files. It scans directories, identifies duplicate files using hash algorithms, stores the information in a SQLite database, and provides tools to manage and delete duplicates.
 
 ## Features
 
@@ -12,15 +12,17 @@ A Python library to find and manage duplicate files. Deduper scans directories, 
 
 ## Installation
 
+From PyPi
+
 ```bash
-pip install -e .
+pip install dup-file-finder
 ```
 
 Or install from source:
 
 ```bash
-git clone https://github.com/barrust/deduper.git
-cd deduper
+git clone https://github.com/barrust/dup-file-finder.git
+cd dup-file-finder
 pip install -e .
 ```
 
@@ -30,33 +32,33 @@ pip install -e .
 
 #### 1. Scan a directory
 ```bash
-deduper scan /path/to/directory
+dupFileFinder scan /path/to/directory
 ```
 
 #### 2. Find duplicates
 ```bash
-deduper find --show-all
+dupFileFinder find --show-all
 ```
 
 #### 3. View statistics
 ```bash
-deduper stats
+dupFileFinder stats
 ```
 
 #### 4. Delete duplicates (dry run)
 ```bash
-deduper delete --dry-run
+dupFileFinder delete --dry-run
 ```
 
 #### 5. Delete duplicates (for real)
 ```bash
-deduper delete --confirm
+dupFileFinder delete --confirm
 ```
 
 ### Using as a Library
 
 ```python
-from deduper import DuplicateFileFinder
+from dup_file_finder import DuplicateFileFinder
 
 # Initialize the finder
 finder = DuplicateFileFinder(db_path="my_duplicates.db")
@@ -95,7 +97,7 @@ print(f"Deleted: {deleted}")
 Scan a directory for files and store them in the database.
 
 ```bash
-deduper scan /path/to/directory [--no-recursive]
+dupFileFinder scan /path/to/directory [--no-recursive]
 ```
 
 Options:
@@ -105,7 +107,7 @@ Options:
 Find and display duplicate files.
 
 ```bash
-deduper find [--show-all]
+dupFileFinder find [--show-all]
 ```
 
 Options:
@@ -115,7 +117,7 @@ Options:
 Delete duplicate files.
 
 ```bash
-deduper delete [--keep-first|--keep-last] [--dry-run|--confirm]
+dupFileFinder delete [--keep-first|--keep-last] [--dry-run|--confirm]
 ```
 
 Options:
@@ -128,7 +130,7 @@ Options:
 Display statistics about scanned files.
 
 ```bash
-deduper stats [--by-extension]
+dupFileFinder stats [--by-extension]
 ```
 
 Options:
@@ -138,15 +140,15 @@ Options:
 Clear all data from the database.
 
 ```bash
-deduper clear --confirm
+dupFileFinder clear --confirm
 ```
 
 ## Database
 
-By default, deduper uses a SQLite database file named `deduper.db` in the current directory. You can specify a custom database path:
+By default, dupFileFinder uses a SQLite database file named `deduper.db` in the current directory. You can specify a custom database path:
 
 ```bash
-deduper --db /path/to/custom.db scan /directory
+dupFileFinder --db /path/to/custom.db scan /directory
 ```
 
 The database stores:

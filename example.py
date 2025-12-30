@@ -9,7 +9,7 @@ import os
 import shutil
 import tempfile
 
-from deduper import DuplicateFileFinder
+from dup_file_finder import DuplicateFileFinder
 
 
 def main():
