@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 # from pathlib import Path
-from deduper.core import DuplicateFileFinder
+from dup_file_finder.core import DuplicateFileFinder
 
 
 class TestDuplicateFileFinder(unittest.TestCase):

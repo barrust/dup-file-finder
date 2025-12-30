@@ -24,11 +24,11 @@ dynamic = ["version"]
 
 
 [project.scripts]
-deduper = "deduper.cli:main"
+dupFileFinder = "dup_file_finder.cli:main"
 
 
 [tool.setuptools.dynamic]
-version = { attr = "deduper.__version__" }
+version = { attr = "dup_file_finder.__version__" }
 
 [project.urls]
 Homepage = "https://github.com/barrust/dup-file-finder"
@@ -53,7 +53,7 @@ target-version = ['py310']
 include = '\.pyi?$'
 
 [tool.ruff]
-include = ["pyproject.toml", "deduper/**/*.py", "deduper/*.py"]
+include = ["pyproject.toml", "dup_file_finder/**/*.py", "dup_file_finder/*.py"]
 exclude = [
     ".bzr",
     ".direnv",
