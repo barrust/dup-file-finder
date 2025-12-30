@@ -1,5 +1,5 @@
 name: Ruff
-on: [pull_request]
+on: [push]
 permissions:
   contents: write
   pull-requests: write
@@ -26,5 +26,6 @@ jobs:
           add: "."
           default_author: github_actions
           push: true
+          fetch: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
