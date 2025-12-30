@@ -16,11 +16,11 @@ def main():
     """Demonstrate deduper usage."""
 
     # Create a temporary directory for the demo
-    demo_dir = tempfile.mkdtemp(prefix="deduper-demo-")
-    db_path = os.path.join(demo_dir, "deduper.db")
+    demo_dir = tempfile.mkdtemp(prefix="dup-file-finder-demo-")
+    db_path = os.path.join(demo_dir, "dup-file-finder.db")
 
     print("=" * 60)
-    print("Deduper Library Example")
+    print("Dup-File-Finder Library Example")
     print("=" * 60)
 
     try:
