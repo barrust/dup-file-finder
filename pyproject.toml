@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "deduper"
+name = "dup-file-finder"
 description = "A Python library to find and manage duplicate files"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,9 +31,9 @@ deduper = "deduper.cli:main"
 version = { attr = "deduper.__version__" }
 
 [project.urls]
-Homepage = "https://github.com/barrust/deduper"
-Repository = "https://github.com/barrust/deduper"
-Bug-tracker = "https://github.com/barrust/deduper/issues"
+Homepage = "https://github.com/barrust/dup-file-finder"
+Repository = "https://github.com/barrust/dup-file-finder"
+Bug-tracker = "https://github.com/barrust/dup-file-finder/issues"
 
 [tool.pep8]
 max-line-length = 120
