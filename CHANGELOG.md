@@ -1,6 +1,6 @@
 # Changelog
 
-### Version 0.1.1
+### Version 0.0.2 (v2025-12-30-2000)
 
 * Update CLI name from `deduper` to `dupFileFinder`
 
