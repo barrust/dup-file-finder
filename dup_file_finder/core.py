@@ -13,23 +13,26 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    __slots__ = ("db_path", "bulk_size")
+    __slots__ = ("db_path", "bulk_size", "algorithm")
 
     db_path: Path
     bulk_size: int
+    algorithm: str
 
-    def __init__(self, bulk_size: int = 1000, db_path: Path | str = "deduper.db"):
+    def __init__(self, bulk_size: int = 1000, algorithm: str = "sha256", db_path: Path | str = "deduper.db"):
         """
         Initialize the DuplicateFileFinder.
 
         Args:
             bulk_size: Number of files to process before committing to the database
+            algorithm: Hashing algorithm to use (md5, sha256)
             db_path: Path to the SQLite database file
         """
         if isinstance(db_path, str):
             db_path = Path(db_path)
         self.db_path = db_path
         self.bulk_size = bulk_size
+        self.algorithm = algorithm
         self._init_database()
 
     def _init_database(self):
@@ -70,34 +73,31 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def calculate_partial_hash(self, file_path: Path, algorithm: str = "sha256", chunk_size: int = 8192) -> str:
+    def calculate_partial_hash(self, file_path: Path, chunk_size: int = 8192) -> str:
         """
         Calculate the hash of the first chunk_size bytes of a file.
         """
-        hasher = hashlib.md5() if algorithm == "md5" else hashlib.sha256()
+        hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
         with open(file_path, "rb") as f:
             chunk = f.read(chunk_size)
             hasher.update(chunk)
         return hasher.hexdigest()
 
-    def calculate_file_hash(self, file_path: Path, algorithm: str = "sha256") -> str:
+    def calculate_file_hash(self, file_path: Path) -> str:
         """
         Calculate the hash of a file.
 
         Args:
             file_path: Path to the file
-            algorithm: Hashing algorithm to use (md5, sha256)
 
         Returns:
             Hexadecimal hash string
         """
-        hasher = hashlib.md5() if algorithm == "md5" else hashlib.sha256()
+        hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
 
         with open(file_path, "rb") as f:
-            # Read file in chunks to handle large files
             for chunk in iter(lambda: f.read(65536), b""):
                 hasher.update(chunk)
-
         return hasher.hexdigest()
 
     def scan_directory(self, directory: Path | str, recursive: bool = True) -> int:
@@ -168,7 +168,6 @@ class DuplicateFileFinder:
         filename = file_path.stem
         extension = file_path.suffix.lower()
         partial_hash = self.calculate_partial_hash(file_path)
-        # Insert with only partial_hash and size, full hash is NULL for now
         cursor.execute(
             """
             INSERT OR REPLACE INTO files (path, filename, extension, partial_hash, hash, size)
