@@ -253,25 +253,27 @@ class TestDuplicateGroup(unittest.TestCase):
             with open(file_path, "wb") as f:
                 f.write(self.content)
             self.file_paths.append(file_path)
+        self.file_size = len(self.content)
+        self.addCleanup(lambda: shutil.rmtree(self.temp_dir, ignore_errors=True))
 
     def tearDown(self):
+        # Remove any files that may still exist
         for path in self.file_paths:
             if os.path.exists(path):
                 os.remove(path)
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_len_and_iter(self):
-        group = DuplicateGroup("dummyhash", len(self.content), self.file_paths)
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
         self.assertEqual(len(group), 3)
         self.assertEqual(list(group), self.file_paths)
 
     def test_total_and_wasted_size(self):
-        group = DuplicateGroup("dummyhash", len(self.content), self.file_paths)
-        self.assertEqual(group.total_size(), len(self.content) * 3)
-        self.assertEqual(group.wasted_space(), len(self.content) * 2)
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        self.assertEqual(group.total_size(), self.file_size * 3)
+        self.assertEqual(group.wasted_space(), self.file_size * 2)
 
     def test_delete_duplicates_dry_run(self):
-        group = DuplicateGroup("dummyhash", len(self.content), self.file_paths)
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
         keep_path = self.file_paths[0]
         deleted = group.delete_duplicates(keep_path, dry_run=True)
         self.assertEqual(set(deleted), set(self.file_paths) - {keep_path})
@@ -280,7 +282,7 @@ class TestDuplicateGroup(unittest.TestCase):
             self.assertTrue(os.path.exists(path))
 
     def test_delete_duplicates_real(self):
-        group = DuplicateGroup("dummyhash", len(self.content), self.file_paths)
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
         keep_path = self.file_paths[0]
         deleted = group.delete_duplicates(keep_path, dry_run=False)
         self.assertEqual(set(deleted), set(self.file_paths) - {keep_path})
@@ -292,9 +294,25 @@ class TestDuplicateGroup(unittest.TestCase):
                 self.assertFalse(os.path.exists(path))
 
     def test_delete_duplicates_by_idx(self):
-        group = DuplicateGroup("dummyhash", len(self.content), self.file_paths)
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
         deleted = group.delete_duplicates_by_idx(1, dry_run=True)
         self.assertEqual(set(deleted), set(self.file_paths) - {self.file_paths[1]})
+
+    def test_delete_all_duplicates(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        deleted = group.delete_duplicates(keep_path=None, dry_run=True)
+        self.assertEqual(set(deleted), set(self.file_paths))
+        # Real delete
+        deleted_real = group.delete_duplicates(keep_path=None, dry_run=False)
+        self.assertEqual(set(deleted_real), set(self.file_paths))
+        for path in self.file_paths:
+            self.assertFalse(os.path.exists(path))
+
+    def test_repr_and_getitem(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        self.assertIn("DuplicateGroup", repr(group))
+        self.assertEqual(group[0], self.file_paths[0])
+        self.assertEqual(group[1], self.file_paths[1])
 
 
 if __name__ == "__main__":

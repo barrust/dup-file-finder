@@ -420,32 +420,32 @@ class DuplicateGroup:
         return self.file_size * (len(self.file_paths) - 1)
 
     # TODO: The order of the files list could be changed... we may need to adjust keep logic
-    def delete_duplicates_by_idx(self, keep_idx: int, dry_run: bool = True) -> list[str]:
+    def delete_duplicates_by_idx(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files in the group, keeping one specified by index.
 
         Args:
-            keep_idx: Index of the file to keep
+            keep_idx: Index of the file to keep or None to delete all
             dry_run: If True, only return files that would be deleted without deleting
         Returns:
             List of file paths that were (or would be) deleted
         """
-        keep_path = self.file_paths[keep_idx]
+        keep_path = self.file_paths[keep_idx] if keep_idx is not None else None
         return self.delete_duplicates(keep_path, dry_run)
 
-    def delete_duplicates(self, keep_path: str, dry_run: bool = True) -> list[str]:
+    def delete_duplicates(self, keep_path: str | None, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files in the group, keeping the specified file path.
 
         Args:
-            keep_path: File path to keep
+            keep_path: File path to keep (or None to delete all)
             dry_run: If True, only return files that would be deleted without deleting
         Returns:
             List of file paths that were (or would be) deleted
         """
         deleted_files = []
         for file_path in self.file_paths:
-            if file_path != keep_path:
+            if keep_path is None or file_path != keep_path:
                 if not dry_run:
                     try:
                         if os.path.exists(file_path):
