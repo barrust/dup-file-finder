@@ -7,8 +7,7 @@ import shutil
 import tempfile
 import unittest
 
-# from pathlib import Path
-from dup_file_finder.core import DuplicateFileFinder
+from dup_file_finder.core import DuplicateFileFinder, DuplicateGroup
 
 
 class TestDuplicateFileFinder(unittest.TestCase):
@@ -36,11 +35,11 @@ class TestDuplicateFileFinder(unittest.TestCase):
             f.write("Hello, World!")
 
         # Calculate hash
-        hash_val = self.finder.calculate_file_hash(test_file)
+        hash_val = self.finder._calculate_file_hash(test_file)
 
         # Hash should be non-empty and consistent
         self.assertTrue(len(hash_val) > 0)
-        hash_val2 = self.finder.calculate_file_hash(test_file)
+        hash_val2 = self.finder._calculate_file_hash(test_file)
         self.assertEqual(hash_val, hash_val2)
 
     def test_scan_directory(self):
@@ -239,6 +238,121 @@ class TestDuplicateFileFinder(unittest.TestCase):
         # Check counts
         self.assertEqual(ext_stats[".txt"]["count"], 1)
         self.assertEqual(ext_stats[".jpg"]["count"], 1)
+
+    def test_recursive_scan_finds_subdir_files(self):
+        """Test recursive scan finds files in subdirectories."""
+        root = os.path.join(self.test_dir, "root")
+        sub = os.path.join(root, "subdir")
+        os.makedirs(sub)
+        file1 = os.path.join(root, "file1.txt")
+        file2 = os.path.join(sub, "file2.txt")
+        with open(file1, "w") as f:
+            f.write("hello")
+        with open(file2, "w") as f:
+            f.write("world")
+
+        res = self.finder.scan_directory(root, recursive=True)
+        self.assertEqual(res, 2)
+        scanned_files = self.finder.get_scanned_files()
+        self.assertTrue(
+            any(sub in path for path in scanned_files),
+            "Recursive scan should find files in subdirectories",
+        )
+
+    def test_non_recursive_scan_excludes_subdir_files(self):
+        """Test non-recursive scan does not find files in subdirectories."""
+        root = os.path.join(self.test_dir, "root")
+        sub = os.path.join(root, "subdir")
+        os.makedirs(sub)
+        file1 = os.path.join(root, "file1.txt")
+        file2 = os.path.join(sub, "file2.txt")
+        with open(file1, "w") as f:
+            f.write("hello")
+        with open(file2, "w") as f:
+            f.write("world")
+
+        res = self.finder.scan_directory(root, recursive=False)
+        self.assertEqual(res, 1)
+        scanned_files = self.finder.get_scanned_files()
+        self.assertTrue(
+            all(sub not in path for path in scanned_files),
+            "Non-recursive scan should not find files in subdirectories",
+        )
+
+
+class TestDuplicateGroup(unittest.TestCase):
+    """Test cases for DuplicateGroup class."""
+
+    def setUp(self):
+        # Create three temp files with the same content
+        self.temp_dir = tempfile.mkdtemp()
+        self.file_paths = []
+        self.content = b"duplicate content"
+        for i in range(3):
+            file_path = os.path.join(self.temp_dir, f"file{i}.txt")
+            with open(file_path, "wb") as f:
+                f.write(self.content)
+            self.file_paths.append(file_path)
+        self.file_size = len(self.content)
+        self.addCleanup(lambda: shutil.rmtree(self.temp_dir, ignore_errors=True))
+
+    def tearDown(self):
+        # Remove any files that may still exist
+        for path in self.file_paths:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_len_and_iter(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        self.assertEqual(len(group), 3)
+        self.assertEqual(list(group), self.file_paths)
+
+    def test_total_and_wasted_size(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        self.assertEqual(group.total_size(), self.file_size * 3)
+        self.assertEqual(group.wasted_space(), self.file_size * 2)
+
+    def test_delete_duplicates_dry_run(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        keep_path = self.file_paths[0]
+        deleted = group.delete_duplicates(keep_path, dry_run=True)
+        self.assertEqual(set(deleted), set(self.file_paths) - {keep_path})
+        # Files should still exist
+        for path in self.file_paths:
+            self.assertTrue(os.path.exists(path))
+
+    def test_delete_duplicates_real(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        keep_path = self.file_paths[0]
+        deleted = group.delete_duplicates(keep_path, dry_run=False)
+        self.assertEqual(set(deleted), set(self.file_paths) - {keep_path})
+        # Only keep_path should exist
+        for path in self.file_paths:
+            if path == keep_path:
+                self.assertTrue(os.path.exists(path))
+            else:
+                self.assertFalse(os.path.exists(path))
+
+    def test_delete_duplicates_by_idx(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        deleted = group.delete_duplicates_alt(1, dry_run=True)
+        self.assertEqual(set(deleted), set(self.file_paths) - {self.file_paths[1]})
+
+    def test_delete_all_duplicates(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        deleted = group.delete_duplicates(keep_path=None, dry_run=True)
+        self.assertEqual(set(deleted), set(self.file_paths))
+        # Real delete
+        deleted_real = group.delete_duplicates(keep_path=None, dry_run=False)
+        self.assertEqual(set(deleted_real), set(self.file_paths))
+        for path in self.file_paths:
+            self.assertFalse(os.path.exists(path))
+
+    def test_repr_and_getitem(self):
+        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        self.assertIn("DuplicateGroup", repr(group))
+        self.assertEqual(group[0], self.file_paths[0])
+        self.assertEqual(group[1], self.file_paths[1])
 
 
 if __name__ == "__main__":

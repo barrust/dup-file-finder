@@ -4,7 +4,7 @@
 [![GitHub release](https://img.shields.io/github/release/barrust/dup-file-finder.svg)](https://github.com/barrust/dup-file-finder/releases)
 [![Build Status](https://github.com/barrust/dup-file-finder/workflows/Python%20package/badge.svg)](https://github.com/barrust/dup-file-finder/actions?query=workflow%3A%22Python+package%22)
 [![PyPI Release](https://badge.fury.io/py/dup-file-finder.svg)](https://pypi.org/project/dup-file-finder/)
-<!-- [![Downloads](https://pepy.tech/badge/dup-file-finder)](https://pepy.tech/project/dup-file-finder) -->
+[![Downloads](https://pepy.tech/badge/dup-file-finder)](https://pepy.tech/project/dup-file-finder)
 
 A Python library to find and manage duplicate files. It scans directories, identifies duplicate files using hash algorithms, stores the information in a SQLite database, and provides tools to manage and delete duplicates.
 
