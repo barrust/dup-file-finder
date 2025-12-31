@@ -35,11 +35,11 @@ class TestDuplicateFileFinder(unittest.TestCase):
             f.write("Hello, World!")
 
         # Calculate hash
-        hash_val = self.finder.calculate_file_hash(test_file)
+        hash_val = self.finder._calculate_file_hash(test_file)
 
         # Hash should be non-empty and consistent
         self.assertTrue(len(hash_val) > 0)
-        hash_val2 = self.finder.calculate_file_hash(test_file)
+        hash_val2 = self.finder._calculate_file_hash(test_file)
         self.assertEqual(hash_val, hash_val2)
 
     def test_scan_directory(self):
@@ -238,6 +238,46 @@ class TestDuplicateFileFinder(unittest.TestCase):
         # Check counts
         self.assertEqual(ext_stats[".txt"]["count"], 1)
         self.assertEqual(ext_stats[".jpg"]["count"], 1)
+
+    def test_recursive_scan_finds_subdir_files(self):
+        """Test recursive scan finds files in subdirectories."""
+        root = os.path.join(self.test_dir, "root")
+        sub = os.path.join(root, "subdir")
+        os.makedirs(sub)
+        file1 = os.path.join(root, "file1.txt")
+        file2 = os.path.join(sub, "file2.txt")
+        with open(file1, "w") as f:
+            f.write("hello")
+        with open(file2, "w") as f:
+            f.write("world")
+
+        res = self.finder.scan_directory(root, recursive=True)
+        self.assertEqual(res, 2)
+        scanned_files = self.finder.get_scanned_files()
+        self.assertTrue(
+            any(sub in path for path in scanned_files),
+            "Recursive scan should find files in subdirectories",
+        )
+
+    def test_non_recursive_scan_excludes_subdir_files(self):
+        """Test non-recursive scan does not find files in subdirectories."""
+        root = os.path.join(self.test_dir, "root")
+        sub = os.path.join(root, "subdir")
+        os.makedirs(sub)
+        file1 = os.path.join(root, "file1.txt")
+        file2 = os.path.join(sub, "file2.txt")
+        with open(file1, "w") as f:
+            f.write("hello")
+        with open(file2, "w") as f:
+            f.write("world")
+
+        res = self.finder.scan_directory(root, recursive=False)
+        self.assertEqual(res, 1)
+        scanned_files = self.finder.get_scanned_files()
+        self.assertTrue(
+            all(sub not in path for path in scanned_files),
+            "Non-recursive scan should not find files in subdirectories",
+        )
 
 
 class TestDuplicateGroup(unittest.TestCase):

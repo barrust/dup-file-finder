@@ -13,19 +13,27 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    __slots__ = ("db_path", "bulk_size", "algorithm")
+    __slots__ = ("db_path", "bulk_size", "algorithm", "partial_hash_size")
 
     db_path: Path
     bulk_size: int
     algorithm: str
+    partial_hash_size: int
 
-    def __init__(self, bulk_size: int = 1000, algorithm: str = "sha256", db_path: Path | str = "deduper.db"):
+    def __init__(
+        self,
+        bulk_size: int = 1000,
+        algorithm: str = "sha256",
+        partial_hash_size: int = 8192,
+        db_path: Path | str = "deduper.db",
+    ):
         """
         Initialize the DuplicateFileFinder.
 
         Args:
             bulk_size: Number of files to process before committing to the database
             algorithm: Hashing algorithm to use (md5, sha256)
+            partial_hash_size: Number of bytes to read for partial hashing, default 8KB
             db_path: Path to the SQLite database file
         """
         if isinstance(db_path, str):
@@ -33,6 +41,7 @@ class DuplicateFileFinder:
         self.db_path = db_path
         self.bulk_size = bulk_size
         self.algorithm = algorithm
+        self.partial_hash_size = partial_hash_size
         self._init_database()
 
     def _init_database(self):
@@ -73,17 +82,17 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def calculate_partial_hash(self, file_path: Path, chunk_size: int = 8192) -> str:
+    def _calculate_partial_hash(self, file_path: Path) -> str:
         """
         Calculate the hash of the first chunk_size bytes of a file.
         """
         hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
         with open(file_path, "rb") as f:
-            chunk = f.read(chunk_size)
+            chunk = f.read(self.partial_hash_size)
             hasher.update(chunk)
         return hasher.hexdigest()
 
-    def calculate_file_hash(self, file_path: Path) -> str:
+    def _calculate_file_hash(self, file_path: Path) -> str:
         """
         Calculate the hash of a file.
 
@@ -117,30 +126,16 @@ class DuplicateFileFinder:
         cursor = conn.cursor()
         files_scanned = 0
 
-        if recursive:
-            for root, _, files in os.walk(directory):
-                for file in files:
-                    file_path = Path(root) / file
-                    try:
-                        self._store_file(cursor, file_path)
-                        files_scanned += 1
+        for root, dirs, files in os.walk(directory):
+            if not recursive:
+                dirs.clear()
+            for file in files:
+                file_path = Path(root) / file
+                self._store_file(cursor, file_path)
+                files_scanned += 1
 
-                        if files_scanned % self.bulk_size == 0:
-                            conn.commit()
-
-                    except (OSError, PermissionError) as e:
-                        # Log files that can't be read
-                        self._log_unreadable_file(cursor, file_path, type(e).__name__)
-                        continue
-        else:
-            for item in directory.iterdir():
-                if item.is_file():
-                    try:
-                        self._store_file(cursor, item)
-                        files_scanned += 1
-                    except (OSError, PermissionError) as e:
-                        self._log_unreadable_file(cursor, item, type(e).__name__)
-                        continue
+                if files_scanned % self.bulk_size == 0:
+                    conn.commit()
         conn.commit()
 
         # After scanning, update full hashes for candidates
@@ -163,18 +158,37 @@ class DuplicateFileFinder:
 
     def _store_file(self, cursor, file_path: Path):
         """Store file information in the database."""
-        file_size = file_path.stat().st_size
-        abs_path = str(file_path.resolve())
-        filename = file_path.stem
-        extension = file_path.suffix.lower()
-        partial_hash = self.calculate_partial_hash(file_path)
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO files (path, filename, extension, partial_hash, hash, size)
-            VALUES (?, ?, ?, ?, NULL, ?)
-            """,
-            (abs_path, filename, extension, partial_hash, file_size),
-        )
+        try:
+            file_size = file_path.stat().st_size
+            abs_path = str(file_path.resolve())
+            filename = file_path.stem
+            extension = file_path.suffix.lower()
+            partial_hash = self._calculate_partial_hash(file_path)
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO files (path, filename, extension, partial_hash, hash, size)
+                VALUES (?, ?, ?, ?, NULL, ?)
+                """,
+                (abs_path, filename, extension, partial_hash, file_size),
+            )
+        except (OSError, PermissionError) as e:
+            self._log_unreadable_file(cursor, file_path, type(e).__name__)
+
+    def get_scanned_files(self) -> list[str]:
+        """
+        Retrieve all files stored in the database.
+
+        Returns:
+            List of strings (file_paths)
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT path FROM files")
+        files = cursor.fetchall()
+
+        conn.close()
+        return [file[0] for file in files]
 
     def find_duplicates(self) -> dict[str, "DuplicateGroup"]:
         """
@@ -243,7 +257,7 @@ class DuplicateFileFinder:
                 if not full_hash:
                     file_path = Path(path)
                     try:
-                        computed_hash = self.calculate_file_hash(file_path)
+                        computed_hash = self._calculate_file_hash(file_path)
                         cursor.execute(
                             "UPDATE files SET hash = ? WHERE path = ?",
                             (computed_hash, path),
