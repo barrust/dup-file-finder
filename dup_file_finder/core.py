@@ -14,16 +14,16 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    __slots__ = ("db_path", "bulk_size", "algorithm", "partial_hash_size")
+    __slots__ = ("db_path", "batch_size", "algorithm", "partial_hash_size")
 
     db_path: Path
-    bulk_size: int
+    batch_size: int
     algorithm: str
     partial_hash_size: int
 
     def __init__(
         self,
-        bulk_size: int = 1000,
+        batch_size: int = 1000,
         algorithm: str = "sha256",
         partial_hash_size: int = 8192,
         db_path: Path | str = "deduper.db",
@@ -32,7 +32,7 @@ class DuplicateFileFinder:
         Initialize the DuplicateFileFinder.
 
         Args:
-            bulk_size: Number of files to process before committing to the database
+            batch_size: Number of files to process before committing to the database
             algorithm: Hashing algorithm to use (md5, sha256)
             partial_hash_size: Number of bytes to read for partial hashing, default 8KB
             db_path: Path to the SQLite database file
@@ -40,7 +40,7 @@ class DuplicateFileFinder:
         if isinstance(db_path, str):
             db_path = Path(db_path).absolute()
         self.db_path = db_path
-        self.bulk_size = bulk_size
+        self.batch_size = batch_size
         self.algorithm = algorithm
         self.partial_hash_size = partial_hash_size
         self._init_database()
@@ -135,7 +135,7 @@ class DuplicateFileFinder:
                 self._store_file(cursor, file_path)
                 files_scanned += 1
 
-                if files_scanned % self.bulk_size == 0:
+                if files_scanned % self.batch_size == 0:
                     conn.commit()
         conn.commit()
 
@@ -186,7 +186,7 @@ class DuplicateFileFinder:
         cursor = conn.cursor()
         cursor.execute("SELECT path FROM files")
         while True:
-            rows = cursor.fetchmany(self.bulk_size)
+            rows = cursor.fetchmany(self.batch_size)
             if not rows:
                 break
             for row in rows:
