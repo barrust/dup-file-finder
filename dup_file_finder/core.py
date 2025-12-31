@@ -29,7 +29,7 @@ class DuplicateFileFinder:
             db_path: Path to the SQLite database file
         """
         if isinstance(db_path, str):
-            db_path = Path(db_path)
+            db_path = Path(db_path).absolute()
         self.db_path = db_path
         self.bulk_size = bulk_size
         self.algorithm = algorithm
@@ -176,23 +176,23 @@ class DuplicateFileFinder:
             (abs_path, filename, extension, partial_hash, file_size),
         )
 
-    def find_duplicates(self) -> dict[str, list[str]]:
+    def find_duplicates(self) -> dict[str, "DuplicateGroup"]:
         """
         Find all duplicate files in the database.
 
         Returns:
-            Dictionary mapping hash to list of file paths
+            Dictionary mapping hash to DuplicateGroup
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # Ensure full hashes are calculated for all candidate groups
+        # Only update full hashes for files missing them, not every time
         self._update_partial_hashes(cursor)
         conn.commit()
 
         # Now find duplicates by full hash
         cursor.execute("""
-            SELECT hash, path
+            SELECT hash, path, size
             FROM files
             WHERE hash IN (
                 SELECT hash
@@ -204,13 +204,18 @@ class DuplicateFileFinder:
             ORDER BY hash, path
         """)
 
-        duplicates: dict[str, list[str]] = {}
-        for hash_val, path in cursor.fetchall():
-            if hash_val not in duplicates:
-                duplicates[hash_val] = []
-            duplicates[hash_val].append(path)
+        groups: dict[str, list[tuple[str, int]]] = {}
+        for hash_val, path, size in cursor.fetchall():
+            if hash_val not in groups:
+                groups[hash_val] = []
+            groups[hash_val].append((path, size))
 
-        conn.commit()
+        duplicates: dict[str, DuplicateGroup] = {}
+        for hash_val, files in groups.items():
+            file_paths = [p for p, _ in files]
+            file_size = files[0][1] if files else 0
+            duplicates[hash_val] = DuplicateGroup(hash_val, file_size, file_paths)
+
         conn.close()
         return duplicates
 
@@ -246,12 +251,12 @@ class DuplicateFileFinder:
                     except Exception:
                         continue
 
-    def get_duplicate_groups(self) -> list[list[str]]:
+    def get_duplicate_groups(self) -> list["DuplicateGroup"]:
         """
-        Get duplicate files as a list of groups.
+        Get duplicate files as a list of DuplicateGroup.
 
         Returns:
-            List of lists, where each inner list contains duplicate file paths
+            List of DuplicateGroup instances
         """
         duplicates = self.find_duplicates()
         return list(duplicates.values())
@@ -273,23 +278,15 @@ class DuplicateFileFinder:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        for _, file_list in duplicates.items():
-            sorted_files = sorted(file_list)
-
-            files_to_delete = sorted_files[1:] if keep_first else sorted_files[:-1]
-
-            for file_path in files_to_delete:
-                if not dry_run:
-                    try:
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                            cursor.execute("DELETE FROM files WHERE path = ?", (file_path,))
-                            deleted_files.append(file_path)
-                    except (OSError, PermissionError):
-                        # Skip files that can't be deleted
-                        continue
-                else:
-                    deleted_files.append(file_path)
+        for group in duplicates.values():
+            sorted_files = sorted(group.file_paths)
+            keep_path = sorted_files[0] if keep_first else sorted_files[-1]
+            group.file_paths = sorted_files  # Ensure order matches
+            files_to_delete = group.delete_duplicates(keep_path, dry_run=dry_run)
+            if not dry_run:
+                for file_path in files_to_delete:
+                    cursor.execute("DELETE FROM files WHERE path = ?", (file_path,))
+            deleted_files.extend(files_to_delete)
 
         if not dry_run:
             conn.commit()
