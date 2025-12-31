@@ -409,7 +409,14 @@ class DuplicateGroup:
         return self.file_paths[index]
 
     def __repr__(self) -> str:
-        return f"DuplicateGroup(hash={self.hash}, files={len(self.file_paths)})"
+        return (
+            "DuplicateGroup("
+            f"hash={self.hash}, "
+            f"files={len(self.file_paths)}, "
+            f"file_size={self.file_size}, "
+            f"human_readable_size={self.human_readable_size()}"
+            ")"
+        )
 
     def total_size(self) -> int:
         """Calculate the total size of all files in the group."""
@@ -418,6 +425,15 @@ class DuplicateGroup:
     def wasted_space(self) -> int:
         """Calculate the wasted space due to duplicates (excluding one copy)."""
         return self.file_size * (len(self.file_paths) - 1)
+
+    def human_readable_size(self) -> str:
+        """Return the file size in a human-readable format."""
+        size = float(self.file_size)
+        for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
+            if size < 1024.0:
+                return f"{size:.2f} {unit}"
+            size /= 1024.0
+        return f"{size:.2f} EB"
 
     # TODO: The order of the files list could be changed... we may need to adjust keep logic
     def delete_duplicates_alt(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
