@@ -420,7 +420,7 @@ class DuplicateGroup:
         return self.file_size * (len(self.file_paths) - 1)
 
     # TODO: The order of the files list could be changed... we may need to adjust keep logic
-    def delete_duplicates_by_idx(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
+    def delete_duplicates_alt(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files in the group, keeping one specified by index.
 

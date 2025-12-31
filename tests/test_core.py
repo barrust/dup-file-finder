@@ -295,7 +295,7 @@ class TestDuplicateGroup(unittest.TestCase):
 
     def test_delete_duplicates_by_idx(self):
         group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
-        deleted = group.delete_duplicates_by_idx(1, dry_run=True)
+        deleted = group.delete_duplicates_alt(1, dry_run=True)
         self.assertEqual(set(deleted), set(self.file_paths) - {self.file_paths[1]})
 
     def test_delete_all_duplicates(self):
