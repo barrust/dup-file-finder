@@ -5,6 +5,7 @@ Core functionality for finding duplicate files.
 import hashlib
 import os
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 
@@ -174,21 +175,23 @@ class DuplicateFileFinder:
         except (OSError, PermissionError) as e:
             self._log_unreadable_file(cursor, file_path, type(e).__name__)
 
-    def get_scanned_files(self) -> list[str]:
+    def get_scanned_files(self) -> Iterator[str]:
         """
-        Retrieve all files stored in the database.
+        Yield all files stored in the database in batches.
 
-        Returns:
-            List of strings (file_paths)
+        Yields:
+            File paths (str)
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         cursor.execute("SELECT path FROM files")
-        files = cursor.fetchall()
-
+        while True:
+            rows = cursor.fetchmany(self.bulk_size)
+            if not rows:
+                break
+            for row in rows:
+                yield row[0]
         conn.close()
-        return [file[0] for file in files]
 
     def find_duplicates(self) -> dict[str, "DuplicateGroup"]:
         """
