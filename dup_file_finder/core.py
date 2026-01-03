@@ -6,6 +6,7 @@ import hashlib
 import os
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 from dup_file_finder.utils import format_size
@@ -233,7 +234,7 @@ class DuplicateFileFinder:
         for hash_val, files in groups.items():
             file_paths = [p for p, _ in files]
             file_size = files[0][1] if files else 0
-            duplicates[hash_val] = DuplicateGroup(hash_val, file_size, file_paths)
+            duplicates[hash_val] = DuplicateGroup(hash_=hash_val, file_size=file_size, file_paths=file_paths)
 
         conn.close()
         return duplicates
@@ -296,9 +297,7 @@ class DuplicateFileFinder:
         cursor = conn.cursor()
 
         for group in duplicates.values():
-            sorted_files = sorted(group.file_paths)
-            keep_path = sorted_files[0] if keep_first else sorted_files[-1]
-            group.file_paths = sorted_files  # Ensure order matches
+            keep_path = group.file_paths[0] if keep_first else group.file_paths[-1]
             files_to_delete = group.delete_duplicates(keep_path, dry_run=dry_run)
             if not dry_run:
                 for file_path in files_to_delete:
@@ -405,21 +404,15 @@ class DuplicateFileFinder:
         return result
 
 
+@dataclass(frozen=True, kw_only=True, slots=True)
 class DuplicateGroup:
     """
     Represents a group of duplicate files.
     """
 
-    __slots__ = ("hash", "file_size", "file_paths")
-
-    hash: str
+    hash_: str
     file_paths: list[str]
     file_size: int
-
-    def __init__(self, hash: str, file_size: int, file_paths: list[str]):
-        self.hash = hash
-        self.file_size = file_size
-        self.file_paths = file_paths
 
     def __len__(self) -> int:
         return len(self.file_paths)
@@ -433,7 +426,7 @@ class DuplicateGroup:
     def __repr__(self) -> str:
         return (
             "DuplicateGroup("
-            f"hash={self.hash}, "
+            f"hash={self.hash_}, "
             f"files={len(self.file_paths)}, "
             f"file_size={self.file_size}, "
             f"human_readable_size={self.human_readable_size()}"

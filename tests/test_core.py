@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from dataclasses import FrozenInstanceError
 
 from dup_file_finder.core import DuplicateFileFinder, DuplicateGroup
 
@@ -303,17 +304,17 @@ class TestDuplicateGroup(unittest.TestCase):
                 os.remove(path)
 
     def test_len_and_iter(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         self.assertEqual(len(group), 3)
         self.assertEqual(list(group), self.file_paths)
 
     def test_total_and_wasted_size(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         self.assertEqual(group.total_size(), self.file_size * 3)
         self.assertEqual(group.wasted_space(), self.file_size * 2)
 
     def test_delete_duplicates_dry_run(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         keep_path = self.file_paths[0]
         deleted = group.delete_duplicates(keep_path, dry_run=True)
         self.assertEqual(set(deleted), set(self.file_paths) - {keep_path})
@@ -322,7 +323,7 @@ class TestDuplicateGroup(unittest.TestCase):
             self.assertTrue(os.path.exists(path))
 
     def test_delete_duplicates_real(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         keep_path = self.file_paths[0]
         deleted = group.delete_duplicates(keep_path, dry_run=False)
         self.assertEqual(set(deleted), set(self.file_paths) - {keep_path})
@@ -334,12 +335,12 @@ class TestDuplicateGroup(unittest.TestCase):
                 self.assertFalse(os.path.exists(path))
 
     def test_delete_duplicates_by_idx(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         deleted = group.delete_duplicates_alt(1, dry_run=True)
         self.assertEqual(set(deleted), set(self.file_paths) - {self.file_paths[1]})
 
     def test_delete_all_duplicates(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         deleted = group.delete_duplicates(keep_path=None, dry_run=True)
         self.assertEqual(set(deleted), set(self.file_paths))
         # Real delete
@@ -349,10 +350,21 @@ class TestDuplicateGroup(unittest.TestCase):
             self.assertFalse(os.path.exists(path))
 
     def test_repr_and_getitem(self):
-        group = DuplicateGroup("dummyhash", self.file_size, self.file_paths)
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
         self.assertIn("DuplicateGroup", repr(group))
         self.assertEqual(group[0], self.file_paths[0])
         self.assertEqual(group[1], self.file_paths[1])
+
+    def test_immutable_attributes(self):
+        group = DuplicateGroup(hash_="dummyhash", file_size=self.file_size, file_paths=self.file_paths)
+        with self.assertRaises(FrozenInstanceError):
+            group.hash_ = "newhash"
+        with self.assertRaises(FrozenInstanceError):
+            group.file_size = 1234
+        with self.assertRaises(FrozenInstanceError):
+            group.file_paths = []
+        with self.assertRaises(FrozenInstanceError):
+            group.file_paths = sorted(self.file_paths)
 
 
 if __name__ == "__main__":
