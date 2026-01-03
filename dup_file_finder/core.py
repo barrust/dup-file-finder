@@ -2,11 +2,13 @@
 Core functionality for finding duplicate files.
 """
 
-import hashlib
 import os
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
+
+from dup_file_finder.utils import calculate_hash, calculate_partial_hash, format_size, safe_remove
 
 
 class DuplicateFileFinder:
@@ -83,33 +85,6 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def _calculate_partial_hash(self, file_path: Path) -> str:
-        """
-        Calculate the hash of the first chunk_size bytes of a file.
-        """
-        hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
-        with open(file_path, "rb") as f:
-            chunk = f.read(self.partial_hash_size)
-            hasher.update(chunk)
-        return hasher.hexdigest()
-
-    def _calculate_file_hash(self, file_path: Path) -> str:
-        """
-        Calculate the hash of a file.
-
-        Args:
-            file_path: Path to the file
-
-        Returns:
-            Hexadecimal hash string
-        """
-        hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
-
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(65536), b""):
-                hasher.update(chunk)
-        return hasher.hexdigest()
-
     def scan_directory(self, directory: Path | str, recursive: bool = True) -> int:
         """
         Scan a directory for files and store their information in the database.
@@ -164,7 +139,7 @@ class DuplicateFileFinder:
             abs_path = str(file_path.resolve())
             filename = file_path.stem
             extension = file_path.suffix.lower()
-            partial_hash = self._calculate_partial_hash(file_path)
+            partial_hash = calculate_partial_hash(file_path)
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO files (path, filename, extension, partial_hash, hash, size)
@@ -231,7 +206,7 @@ class DuplicateFileFinder:
         for hash_val, files in groups.items():
             file_paths = [p for p, _ in files]
             file_size = files[0][1] if files else 0
-            duplicates[hash_val] = DuplicateGroup(hash_val, file_size, file_paths)
+            duplicates[hash_val] = DuplicateGroup(hash_=hash_val, file_size=file_size, file_paths=tuple(file_paths))
 
         conn.close()
         return duplicates
@@ -257,16 +232,14 @@ class DuplicateFileFinder:
             )
             rows = cursor.fetchall()
             for path, full_hash in rows:
-                if not full_hash:
-                    file_path = Path(path)
-                    try:
-                        computed_hash = self._calculate_file_hash(file_path)
-                        cursor.execute(
-                            "UPDATE files SET hash = ? WHERE path = ?",
-                            (computed_hash, path),
-                        )
-                    except Exception:
-                        continue
+                if full_hash:
+                    continue  # Full hash already computed
+                file_path = Path(path)
+                try:
+                    computed_hash = calculate_hash(file_path)
+                    cursor.execute("UPDATE files SET hash = ? WHERE path = ?", (computed_hash, path))
+                except Exception:
+                    continue
 
     def get_duplicate_groups(self) -> list["DuplicateGroup"]:
         """
@@ -296,9 +269,7 @@ class DuplicateFileFinder:
         cursor = conn.cursor()
 
         for group in duplicates.values():
-            sorted_files = sorted(group.file_paths)
-            keep_path = sorted_files[0] if keep_first else sorted_files[-1]
-            group.file_paths = sorted_files  # Ensure order matches
+            keep_path = group.file_paths[0] if keep_first else group.file_paths[-1]
             files_to_delete = group.delete_duplicates(keep_path, dry_run=dry_run)
             if not dry_run:
                 for file_path in files_to_delete:
@@ -320,7 +291,7 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def get_statistics(self) -> dict[str, int]:
+    def get_statistics(self) -> dict[str, int | str]:
         """
         Get statistics about scanned files and duplicates.
 
@@ -368,6 +339,7 @@ class DuplicateFileFinder:
             "duplicate_files": duplicate_files,
             "unique_files": total_files - duplicate_files,
             "total_size_bytes": total_size,
+            "total_size": format_size(total_size),
         }
 
     def get_statistics_by_extension(self) -> dict[str, dict[str, int]]:
@@ -394,27 +366,28 @@ class DuplicateFileFinder:
         for ext, count, total_size in cursor.fetchall():
             # Use empty string as key for files without extension
             key = ext if ext else ""
-            result[key] = {"count": count, "total_size_bytes": total_size or 0}
+            result[key] = {
+                "count": count,
+                "total_size_bytes": total_size or 0,
+                "total_size": format_size(total_size or 0),
+            }
 
         conn.close()
         return result
 
 
+@dataclass(frozen=True, kw_only=True, slots=True)
 class DuplicateGroup:
     """
     Represents a group of duplicate files.
     """
 
-    __slots__ = ("hash", "file_size", "file_paths")
-
-    hash: str
-    file_paths: list[str]
+    hash_: str
+    file_paths: tuple[str, ...]
     file_size: int
 
-    def __init__(self, hash: str, file_size: int, file_paths: list[str]):
-        self.hash = hash
-        self.file_size = file_size
-        self.file_paths = file_paths
+    def __post_init__(self):
+        object.__setattr__(self, "file_paths", tuple(self.file_paths))
 
     def __len__(self) -> int:
         return len(self.file_paths)
@@ -428,7 +401,7 @@ class DuplicateGroup:
     def __repr__(self) -> str:
         return (
             "DuplicateGroup("
-            f"hash={self.hash}, "
+            f"hash={self.hash_}, "
             f"files={len(self.file_paths)}, "
             f"file_size={self.file_size}, "
             f"human_readable_size={self.human_readable_size()}"
@@ -445,17 +418,13 @@ class DuplicateGroup:
 
     def human_readable_size(self) -> str:
         """Return the file size in a human-readable format."""
-        size = float(self.file_size)
-        for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
-            if size < 1024.0:
-                return f"{size:.2f} {unit}"
-            size /= 1024.0
-        return f"{size:.2f} EB"
+        return format_size(self.file_size)
 
-    # TODO: The order of the files list could be changed... we may need to adjust keep logic
     def delete_duplicates_alt(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files in the group, keeping one specified by index.
+
+        Note: The index is based on the order of file_paths as stored in the class.
 
         Args:
             keep_idx: Index of the file to keep or None to delete all
@@ -480,12 +449,8 @@ class DuplicateGroup:
         for file_path in self.file_paths:
             if keep_path is None or file_path != keep_path:
                 if not dry_run:
-                    try:
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                            deleted_files.append(file_path)
-                    except (OSError, PermissionError):
-                        continue
+                    if safe_remove(file_path):
+                        deleted_files.append(file_path)
                 else:
                     deleted_files.append(file_path)
         return deleted_files

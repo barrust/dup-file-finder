@@ -5,17 +5,7 @@ Command-line interface for deduper.
 import argparse
 import sys
 
-from .core import DuplicateFileFinder
-
-
-def format_size(size_bytes: int) -> str:
-    """Format byte size to human-readable format."""
-    size_bytes_float = float(size_bytes)
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if size_bytes_float < 1024.0:
-            return f"{size_bytes_float:.2f} {unit}"
-        size_bytes_float /= 1024.0
-    return f"{size_bytes_float:.2f} PB"
+from dup_file_finder.core import DuplicateFileFinder
 
 
 def main():
@@ -143,14 +133,19 @@ def main():
         print(f"  Unique files: {stats['unique_files']}")
         print(f"  Duplicate files: {stats['duplicate_files']}")
         print(f"  Duplicate groups: {stats['duplicate_groups']}")
-        print(f"  Total size: {format_size(stats['total_size_bytes'])}")
+        print(f"  Total size: {stats['total_size']}")
 
         if args.by_extension:
             print("\nStatistics by file extension:")
             ext_stats = finder.get_statistics_by_extension()
             for ext, ext_data in ext_stats.items():
                 ext_name = ext if ext else "(no extension)"
-                print(f"  {ext_name}: {ext_data['count']} file(s), {format_size(ext_data['total_size_bytes'])}")
+                print(
+                    "  "
+                    f"{ext_name}: {ext_data['count']} file(s), "
+                    f"{ext_data['total_size_bytes']} bytes, "
+                    f"{ext_data['total_size']}"
+                )
 
     elif args.command == "clear":
         if not args.confirm:
