@@ -59,7 +59,14 @@ def calculate_partial_hash(file_path: Path, algorithm: str = "sha256", num_bytes
 
 
 def safe_remove(file_path: str) -> bool:
-    """Attempt to remove a file, returning True if successful, False otherwise."""
+    """Attempt to remove a file, returning True if successful, False otherwise.
+
+    Args:
+        file_path (str): Path to the file to remove
+
+    Returns:
+        bool: True if file was removed, False otherwise
+    """
     try:
         os.remove(file_path)
         return True
