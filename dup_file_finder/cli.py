@@ -5,7 +5,7 @@ Command-line interface for deduper.
 import argparse
 import sys
 
-from .core import DuplicateFileFinder
+from dup_file_finder.core import DuplicateFileFinder
 
 
 def main():

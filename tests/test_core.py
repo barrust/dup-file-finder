@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 
+from dup_file_finder import utils
 from dup_file_finder.core import DuplicateFileFinder, DuplicateGroup
 
 
@@ -36,11 +37,11 @@ class TestDuplicateFileFinder(unittest.TestCase):
             f.write("Hello, World!")
 
         # Calculate hash
-        hash_val = self.finder._calculate_file_hash(test_file)
+        hash_val = utils.calculate_hash(test_file)
 
         # Hash should be non-empty and consistent
         self.assertTrue(len(hash_val) > 0)
-        hash_val2 = self.finder._calculate_file_hash(test_file)
+        hash_val2 = utils.calculate_hash(test_file)
         self.assertEqual(hash_val, hash_val2)
 
     def test_scan_directory(self):
@@ -367,6 +368,58 @@ class TestDuplicateGroup(unittest.TestCase):
             group.file_paths = sorted(self.file_paths)
         with self.assertRaises(AttributeError):
             group.file_paths.append("newfile.txt")
+
+
+class TestUtils(unittest.TestCase):
+    """Test cases for utility functions."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
+    def test_format_size(self):
+        self.assertEqual(utils.format_size(500), "500.00 B")
+        self.assertEqual(utils.format_size(2048), "2.00 KB")
+        self.assertEqual(utils.format_size(5 * 1024**2), "5.00 MB")
+        self.assertEqual(utils.format_size(3 * 1024**3), "3.00 GB")
+        self.assertEqual(utils.format_size(7 * 1024**4), "7.00 TB")
+
+    def test_calculate_hash(self):
+        # Create a test file
+        test_file = os.path.join(self.test_dir, "test.txt")
+        content = b"Hello, World! " * 1000  # Large enough content
+        self.assertEqual(len(content), 14000)
+        with open(test_file, "wb") as f:
+            f.write(content)
+
+        md5_hash = utils.calculate_hash(test_file, algorithm="md5")
+        sha256_hash = utils.calculate_hash(test_file, algorithm="sha256")
+
+        expected_md5 = "9764d617387e33b0a3fd00610d2655b7"
+        expected_sha256 = "8b7d116691afca5fc487dcf2959825c88a7b18b1fe560c5ca8b2729acb5ca67a"
+
+        self.assertEqual(md5_hash, expected_md5)
+        self.assertEqual(sha256_hash, expected_sha256)
+
+    def test_calculate_partial_hash(self):
+        # Create a test file
+        test_file = os.path.join(self.test_dir, "test.txt")
+        content = b"Hello, World! " * 1000  # Large enough content
+        self.assertEqual(len(content), 14000)
+        with open(test_file, "wb") as f:
+            f.write(content)
+
+        partial_md5 = utils.calculate_partial_hash(test_file, algorithm="md5", num_bytes=8192)
+        partial_sha256 = utils.calculate_partial_hash(test_file, algorithm="sha256", num_bytes=8192)
+
+        expected_partial_md5 = "c5474eaa2ffba4b52988f6032f97cf96"
+        expected_partial_sha256 = "2cc7cc023318cd1cb4e356dcc13354e1c60bf474e7a4a380bc94db520569c10b"
+        self.assertEqual(partial_md5, expected_partial_md5)
+        self.assertEqual(partial_sha256, expected_partial_sha256)
 
 
 if __name__ == "__main__":

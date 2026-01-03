@@ -2,14 +2,13 @@
 Core functionality for finding duplicate files.
 """
 
-import hashlib
 import os
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from dup_file_finder.utils import format_size
+from dup_file_finder.utils import calculate_hash, calculate_partial_hash, format_size
 
 
 class DuplicateFileFinder:
@@ -86,33 +85,6 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def _calculate_partial_hash(self, file_path: Path) -> str:
-        """
-        Calculate the hash of the first chunk_size bytes of a file.
-        """
-        hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
-        with open(file_path, "rb") as f:
-            chunk = f.read(self.partial_hash_size)
-            hasher.update(chunk)
-        return hasher.hexdigest()
-
-    def _calculate_file_hash(self, file_path: Path) -> str:
-        """
-        Calculate the hash of a file.
-
-        Args:
-            file_path: Path to the file
-
-        Returns:
-            Hexadecimal hash string
-        """
-        hasher = hashlib.md5() if self.algorithm == "md5" else hashlib.sha256()
-
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(65536), b""):
-                hasher.update(chunk)
-        return hasher.hexdigest()
-
     def scan_directory(self, directory: Path | str, recursive: bool = True) -> int:
         """
         Scan a directory for files and store their information in the database.
@@ -167,7 +139,7 @@ class DuplicateFileFinder:
             abs_path = str(file_path.resolve())
             filename = file_path.stem
             extension = file_path.suffix.lower()
-            partial_hash = self._calculate_partial_hash(file_path)
+            partial_hash = calculate_partial_hash(file_path)
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO files (path, filename, extension, partial_hash, hash, size)
@@ -264,7 +236,7 @@ class DuplicateFileFinder:
                     continue  # Full hash already computed
                 file_path = Path(path)
                 try:
-                    computed_hash = self._calculate_file_hash(file_path)
+                    computed_hash = calculate_hash(file_path)
                     cursor.execute("UPDATE files SET hash = ? WHERE path = ?", (computed_hash, path))
                 except Exception:
                     continue
