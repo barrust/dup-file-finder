@@ -8,6 +8,8 @@ import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
+from dup_file_finder.utils import format_size
+
 
 class DuplicateFileFinder:
     """
@@ -257,16 +259,14 @@ class DuplicateFileFinder:
             )
             rows = cursor.fetchall()
             for path, full_hash in rows:
-                if not full_hash:
-                    file_path = Path(path)
-                    try:
-                        computed_hash = self._calculate_file_hash(file_path)
-                        cursor.execute(
-                            "UPDATE files SET hash = ? WHERE path = ?",
-                            (computed_hash, path),
-                        )
-                    except Exception:
-                        continue
+                if full_hash:
+                    continue  # Full hash already computed
+                file_path = Path(path)
+                try:
+                    computed_hash = self._calculate_file_hash(file_path)
+                    cursor.execute("UPDATE files SET hash = ? WHERE path = ?", (computed_hash, path))
+                except Exception:
+                    continue
 
     def get_duplicate_groups(self) -> list["DuplicateGroup"]:
         """
@@ -320,7 +320,7 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def get_statistics(self) -> dict[str, int]:
+    def get_statistics(self) -> dict[str, int | str]:
         """
         Get statistics about scanned files and duplicates.
 
@@ -368,6 +368,7 @@ class DuplicateFileFinder:
             "duplicate_files": duplicate_files,
             "unique_files": total_files - duplicate_files,
             "total_size_bytes": total_size,
+            "total_size": format_size(total_size),
         }
 
     def get_statistics_by_extension(self) -> dict[str, dict[str, int]]:
@@ -394,7 +395,11 @@ class DuplicateFileFinder:
         for ext, count, total_size in cursor.fetchall():
             # Use empty string as key for files without extension
             key = ext if ext else ""
-            result[key] = {"count": count, "total_size_bytes": total_size or 0}
+            result[key] = {
+                "count": count,
+                "total_size_bytes": total_size or 0,
+                "total_size": format_size(total_size or 0),
+            }
 
         conn.close()
         return result
@@ -445,12 +450,7 @@ class DuplicateGroup:
 
     def human_readable_size(self) -> str:
         """Return the file size in a human-readable format."""
-        size = float(self.file_size)
-        for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
-            if size < 1024.0:
-                return f"{size:.2f} {unit}"
-            size /= 1024.0
-        return f"{size:.2f} EB"
+        return format_size(self.file_size)
 
     # TODO: The order of the files list could be changed... we may need to adjust keep logic
     def delete_duplicates_alt(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
