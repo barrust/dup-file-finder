@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from dup_file_finder.utils import calculate_hash, calculate_partial_hash, format_size
+from dup_file_finder.utils import calculate_hash, calculate_partial_hash, format_size, safe_remove
 
 
 class DuplicateFileFinder:
@@ -449,12 +449,8 @@ class DuplicateGroup:
         for file_path in self.file_paths:
             if keep_path is None or file_path != keep_path:
                 if not dry_run:
-                    try:
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                            deleted_files.append(file_path)
-                    except (OSError, PermissionError):
-                        continue
+                    if safe_remove(file_path):
+                        deleted_files.append(file_path)
                 else:
                     deleted_files.append(file_path)
         return deleted_files

@@ -421,6 +421,24 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(partial_md5, expected_partial_md5)
         self.assertEqual(partial_sha256, expected_partial_sha256)
 
+    def test_safe_remove(self):
+        # Create a test file
+        test_file = os.path.join(self.test_dir, "test.txt")
+        with open(test_file, "w") as f:
+            f.write("To be deleted")
+
+        # File should exist
+        self.assertTrue(os.path.exists(test_file))
+
+        # Remove the file
+        result = utils.safe_remove(test_file)
+        self.assertTrue(result)
+        self.assertFalse(os.path.exists(test_file))
+
+        # Try removing a non-existent file
+        result_nonexistent = utils.safe_remove(test_file)
+        self.assertFalse(result_nonexistent)
+
 
 if __name__ == "__main__":
     unittest.main()

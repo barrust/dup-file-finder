@@ -3,6 +3,7 @@ Utility functions for deduper.
 """
 
 import hashlib
+import os
 from pathlib import Path
 
 
@@ -55,3 +56,12 @@ def calculate_partial_hash(file_path: Path, algorithm: str = "sha256", num_bytes
         chunk = f.read(num_bytes)
         hasher.update(chunk)
     return hasher.hexdigest()
+
+
+def safe_remove(file_path: str) -> bool:
+    """Attempt to remove a file, returning True if successful, False otherwise."""
+    try:
+        os.remove(file_path)
+        return True
+    except (OSError, PermissionError):
+        return False
