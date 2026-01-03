@@ -234,7 +234,7 @@ class DuplicateFileFinder:
         for hash_val, files in groups.items():
             file_paths = [p for p, _ in files]
             file_size = files[0][1] if files else 0
-            duplicates[hash_val] = DuplicateGroup(hash_=hash_val, file_size=file_size, file_paths=file_paths)
+            duplicates[hash_val] = DuplicateGroup(hash_=hash_val, file_size=file_size, file_paths=tuple(file_paths))
 
         conn.close()
         return duplicates
@@ -411,8 +411,11 @@ class DuplicateGroup:
     """
 
     hash_: str
-    file_paths: list[str]
+    file_paths: tuple[str, ...]
     file_size: int
+
+    def __post_init__(self):
+        object.__setattr__(self, "file_paths", tuple(self.file_paths))
 
     def __len__(self) -> int:
         return len(self.file_paths)
@@ -445,10 +448,11 @@ class DuplicateGroup:
         """Return the file size in a human-readable format."""
         return format_size(self.file_size)
 
-    # TODO: The order of the files list could be changed... we may need to adjust keep logic
     def delete_duplicates_alt(self, keep_idx: int | None, dry_run: bool = True) -> list[str]:
         """
         Delete duplicate files in the group, keeping one specified by index.
+
+        Note: The index is based on the order of file_paths as stored in the class.
 
         Args:
             keep_idx: Index of the file to keep or None to delete all

@@ -365,6 +365,8 @@ class TestDuplicateGroup(unittest.TestCase):
             group.file_paths = []
         with self.assertRaises(FrozenInstanceError):
             group.file_paths = sorted(self.file_paths)
+        with self.assertRaises(AttributeError):
+            group.file_paths.append("newfile.txt")
 
 
 if __name__ == "__main__":
