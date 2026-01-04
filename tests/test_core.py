@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
 from dup_file_finder import utils
 from dup_file_finder.core import DuplicateFileFinder, DuplicateGroup
@@ -17,7 +18,10 @@ class TestDuplicateFileFinder(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.test_dir = tempfile.mkdtemp()
+        tmp = tempfile.mkdtemp()
+        self.test_dir = Path(tmp)
+        self.scan_dir = self.test_dir / "scan"
+        os.makedirs(self.scan_dir, exist_ok=True)
         self.db_path = os.path.join(self.test_dir, "test.db")
         self.finder = DuplicateFileFinder(db_path=self.db_path)
 
@@ -47,11 +51,8 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_scan_directory(self):
         """Test directory scanning."""
         # Create test files in a subdirectory to avoid scanning the db
-        scan_dir = os.path.join(self.test_dir, "scan")
-        os.makedirs(scan_dir)
-
-        test_file1 = os.path.join(scan_dir, "file1.txt")
-        test_file2 = os.path.join(scan_dir, "file2.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = self.scan_dir / "file2.txt"
 
         with open(test_file1, "w") as f:
             f.write("Content 1")
@@ -59,7 +60,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
             f.write("Content 2")
 
         # Scan directory
-        count = self.finder.scan_directory(scan_dir, recursive=False)
+        count = self.finder.scan_directory(self.scan_dir, recursive=False)
 
         # Should have scanned both files
         self.assertEqual(count, 2)
@@ -67,15 +68,15 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_find_no_duplicates(self):
         """Test finding duplicates when none exist."""
         # Create unique files
-        test_file1 = os.path.join(self.test_dir, "file1.txt")
-        test_file2 = os.path.join(self.test_dir, "file2.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = self.scan_dir / "file2.txt"
 
         with open(test_file1, "w") as f:
             f.write("Content 1")
         with open(test_file2, "w") as f:
             f.write("Content 2")
 
-        self.finder.scan_directory(self.test_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
         duplicates = self.finder.find_duplicates()
 
         self.assertEqual(len(duplicates), 0)
@@ -83,8 +84,8 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_find_duplicates(self):
         """Test finding duplicate files."""
         # Create duplicate files
-        test_file1 = os.path.join(self.test_dir, "file1.txt")
-        test_file2 = os.path.join(self.test_dir, "file2.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = self.scan_dir / "file2.txt"
 
         content = "Duplicate content"
         with open(test_file1, "w") as f:
@@ -92,7 +93,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
         with open(test_file2, "w") as f:
             f.write(content)
 
-        self.finder.scan_directory(self.test_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
         duplicates = self.finder.find_duplicates()
 
         # Should find one group of duplicates
@@ -105,8 +106,8 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_delete_duplicates_dry_run(self):
         """Test deleting duplicates in dry run mode."""
         # Create duplicate files
-        test_file1 = os.path.join(self.test_dir, "file1.txt")
-        test_file2 = os.path.join(self.test_dir, "file2.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = self.scan_dir / "file2.txt"
 
         content = "Duplicate content"
         with open(test_file1, "w") as f:
@@ -114,7 +115,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
         with open(test_file2, "w") as f:
             f.write(content)
 
-        self.finder.scan_directory(self.test_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
         deleted = self.finder.delete_duplicates(keep_first=True, dry_run=True)
 
         # Should report one file to delete
@@ -127,8 +128,8 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_delete_duplicates_for_real(self):
         """Test actually deleting duplicate files."""
         # Create duplicate files
-        test_file1 = os.path.join(self.test_dir, "file1.txt")
-        test_file2 = os.path.join(self.test_dir, "file2.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = self.scan_dir / "file2.txt"
 
         content = "Duplicate content"
         with open(test_file1, "w") as f:
@@ -136,7 +137,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
         with open(test_file2, "w") as f:
             f.write(content)
 
-        self.finder.scan_directory(self.test_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
         deleted = self.finder.delete_duplicates(keep_first=True, dry_run=False)
 
         # Should delete one file
@@ -149,12 +150,9 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_get_statistics(self):
         """Test statistics gathering."""
         # Create test files in a subdirectory to avoid scanning the db
-        scan_dir = os.path.join(self.test_dir, "scan")
-        os.makedirs(scan_dir)
-
-        test_file1 = os.path.join(scan_dir, "file1.txt")
-        test_file2 = os.path.join(scan_dir, "file2.txt")
-        test_file3 = os.path.join(scan_dir, "file3.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = self.scan_dir / "file2.txt"
+        test_file3 = self.scan_dir / "file3.txt"
 
         with open(test_file1, "w") as f:
             f.write("Content 1")
@@ -163,7 +161,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
         with open(test_file3, "w") as f:
             f.write("Content 2")
 
-        self.finder.scan_directory(scan_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
         stats = self.finder.get_statistics()
 
         self.assertEqual(stats["total_files"], 3)
@@ -174,20 +172,18 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_recursive_scan(self):
         """Test recursive directory scanning."""
         # Create nested directory structure in a subdirectory to avoid scanning the db
-        scan_dir = os.path.join(self.test_dir, "scan")
-        os.makedirs(scan_dir)
-        subdir = os.path.join(scan_dir, "subdir")
+        subdir = self.scan_dir / "subdir"
         os.makedirs(subdir)
 
-        test_file1 = os.path.join(scan_dir, "file1.txt")
-        test_file2 = os.path.join(subdir, "file2.txt")
+        test_file1 = self.scan_dir / "file1.txt"
+        test_file2 = subdir / "file2.txt"
 
         with open(test_file1, "w") as f:
             f.write("Content")
         with open(test_file2, "w") as f:
             f.write("Content")
 
-        count = self.finder.scan_directory(scan_dir, recursive=True)
+        count = self.finder.scan_directory(self.scan_dir, recursive=True)
 
         # Should scan both files
         self.assertEqual(count, 2)
@@ -195,11 +191,11 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_clear_database(self):
         """Test clearing the database."""
         # Create and scan files
-        test_file = os.path.join(self.test_dir, "file.txt")
+        test_file = self.scan_dir / "file.txt"
         with open(test_file, "w") as f:
             f.write("Content")
 
-        self.finder.scan_directory(self.test_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
         stats_before = self.finder.get_statistics()
         self.assertGreater(stats_before["total_files"], 0)
 
@@ -211,12 +207,9 @@ class TestDuplicateFileFinder(unittest.TestCase):
     def test_file_extension_storage(self):
         """Test that file extensions are stored correctly."""
         # Create test files with different extensions
-        scan_dir = os.path.join(self.test_dir, "scan")
-        os.makedirs(scan_dir)
-
-        test_file1 = os.path.join(scan_dir, "doc.txt")
-        test_file2 = os.path.join(scan_dir, "image.jpg")
-        test_file3 = os.path.join(scan_dir, "noext")
+        test_file1 = self.scan_dir / "doc.txt"
+        test_file2 = self.scan_dir / "image.jpg"
+        test_file3 = self.scan_dir / "noext"
 
         with open(test_file1, "w") as f:
             f.write("text")
@@ -225,7 +218,7 @@ class TestDuplicateFileFinder(unittest.TestCase):
         with open(test_file3, "w") as f:
             f.write("data")
 
-        self.finder.scan_directory(scan_dir, recursive=False)
+        self.finder.scan_directory(self.scan_dir, recursive=False)
 
         # Get statistics by extension
         ext_stats = self.finder.get_statistics_by_extension()
@@ -243,11 +236,11 @@ class TestDuplicateFileFinder(unittest.TestCase):
 
     def test_recursive_scan_finds_subdir_files(self):
         """Test recursive scan finds files in subdirectories."""
-        root = os.path.join(self.test_dir, "root")
-        sub = os.path.join(root, "subdir")
+        root = self.scan_dir / "root"
+        sub = root / "subdir"
         os.makedirs(sub)
-        file1 = os.path.join(root, "file1.txt")
-        file2 = os.path.join(sub, "file2.txt")
+        file1 = root / "file1.txt"
+        file2 = sub / "file2.txt"
         with open(file1, "w") as f:
             f.write("hello")
         with open(file2, "w") as f:
@@ -257,17 +250,17 @@ class TestDuplicateFileFinder(unittest.TestCase):
         self.assertEqual(res, 2)
         scanned_files = self.finder.get_scanned_files()
         self.assertTrue(
-            any(sub in path for path in scanned_files),
+            any(str(sub) in path for path in scanned_files),
             "Recursive scan should find files in subdirectories",
         )
 
     def test_non_recursive_scan_excludes_subdir_files(self):
         """Test non-recursive scan does not find files in subdirectories."""
-        root = os.path.join(self.test_dir, "root")
-        sub = os.path.join(root, "subdir")
+        root = self.scan_dir / "root"
+        sub = root / "subdir"
         os.makedirs(sub)
-        file1 = os.path.join(root, "file1.txt")
-        file2 = os.path.join(sub, "file2.txt")
+        file1 = root / "file1.txt"
+        file2 = sub / "file2.txt"
         with open(file1, "w") as f:
             f.write("hello")
         with open(file2, "w") as f:
@@ -277,9 +270,56 @@ class TestDuplicateFileFinder(unittest.TestCase):
         self.assertEqual(res, 1)
         scanned_files = self.finder.get_scanned_files()
         self.assertTrue(
-            all(sub not in path for path in scanned_files),
+            all(str(sub) not in path for path in scanned_files),
             "Non-recursive scan should not find files in subdirectories",
         )
+
+    def test_scan_directory_with_extensions(self):
+        """Test scanning directory with specific extensions."""
+        # Create files with different extensions
+        (self.scan_dir / "file1.txt").write_text("hello")
+        (self.scan_dir / "file2.jpg").write_text("world")
+        (self.scan_dir / "file3.txt").write_text("foo")
+        (self.scan_dir / "file4.png").write_text("bar")
+        (self.scan_dir / "file5.md").write_text("baz")
+        # Only scan for .txt and .md files
+        scanned = self.finder.scan_directory(self.scan_dir, extensions=[".txt", ".md"])
+        # Should only count files with .txt or .md extension
+        self.assertEqual(scanned, 3)  # All files are scanned, but only .txt/.md are stored
+
+        scanned_files = set(self.finder.get_scanned_files())
+        expected = {str(self.scan_dir / "file1.txt"), str(self.scan_dir / "file3.txt"), str(self.scan_dir / "file5.md")}
+        self.assertEqual(scanned_files, expected)
+
+    def test_scan_directory_ignore_hidden(self):
+        # Create visible and hidden files
+        (self.scan_dir / "visible1.txt").write_text("a")
+        (self.scan_dir / ".hidden1.txt").write_text("b")
+        (self.scan_dir / "visible2.txt").write_text("c")
+        (self.scan_dir / ".hidden2.txt").write_text("d")
+
+        finder = DuplicateFileFinder(db_path=self.test_dir / "test_ignore_hidden.db", ignore_hidden=True)
+        scanned = finder.scan_directory(self.scan_dir)
+        # Only visible files should be scanned
+        self.assertEqual(scanned, 2)
+
+        scanned_files = set(finder.get_scanned_files())
+        expected = {str(self.scan_dir / "visible1.txt"), str(self.scan_dir / "visible2.txt")}
+        self.assertEqual(scanned_files, expected)
+
+    def test_scan_directory_include_hidden(self):
+        # Create visible and hidden files
+        (self.scan_dir / "visible1.txt").write_text("a")
+        (self.scan_dir / ".hidden1.txt").write_text("b")
+
+        finder = DuplicateFileFinder(db_path=self.test_dir / "test_include_hidden.db", ignore_hidden=False)
+        scanned = finder.scan_directory(self.scan_dir)
+        # Both visible and hidden files should be scanned
+        self.assertEqual(scanned, 2)
+
+        scanned_files = set(finder.get_scanned_files())
+        expected = {str(self.scan_dir / "visible1.txt"), str(self.scan_dir / ".hidden1.txt")}
+        self.assertEqual(scanned_files, expected)
 
 
 class TestDuplicateGroup(unittest.TestCase):

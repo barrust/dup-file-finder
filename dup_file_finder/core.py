@@ -16,18 +16,20 @@ class DuplicateFileFinder:
     A class to find and manage duplicate files.
     """
 
-    __slots__ = ("db_path", "batch_size", "algorithm", "partial_hash_size")
+    __slots__ = ("db_path", "batch_size", "algorithm", "partial_hash_size", "ignore_hidden")
 
     db_path: Path
     batch_size: int
     algorithm: str
     partial_hash_size: int
+    ignore_hidden: bool
 
     def __init__(
         self,
         batch_size: int = 1000,
         algorithm: str = "sha256",
         partial_hash_size: int = 8192,
+        ignore_hidden: bool = False,
         db_path: Path | str = "deduper.db",
     ):
         """
@@ -37,6 +39,7 @@ class DuplicateFileFinder:
             batch_size: Number of files to process before committing to the database
             algorithm: Hashing algorithm to use (md5, sha256)
             partial_hash_size: Number of bytes to read for partial hashing, default 8KB
+            ignore_hidden: Whether to ignore hidden files
             db_path: Path to the SQLite database file
         """
         if isinstance(db_path, str):
@@ -45,7 +48,8 @@ class DuplicateFileFinder:
         self.batch_size = batch_size
         self.algorithm = algorithm
         self.partial_hash_size = partial_hash_size
-        self._init_database()
+        self.ignore_hidden = ignore_hidden
+        self._init_database()  # TODO: should we store settings in db?
 
     def _init_database(self):
         """Initialize the SQLite database schema."""
@@ -85,14 +89,14 @@ class DuplicateFileFinder:
         conn.commit()
         conn.close()
 
-    def scan_directory(self, directory: Path | str, recursive: bool = True) -> int:
+    def scan_directory(self, directory: Path | str, recursive: bool = True, extensions: list[str] | None = None) -> int:
         """
         Scan a directory for files and store their information in the database.
 
         Args:
             directory: Directory path to scan
             recursive: Whether to scan subdirectories recursively
-
+            extensions: List of file extensions to include (e.g., ['.txt', '.jpg']). If None, include all files.
         Returns:
             Number of files scanned
         """
@@ -107,8 +111,11 @@ class DuplicateFileFinder:
                 dirs.clear()
             for file in files:
                 file_path = Path(root) / file
-                self._store_file(cursor, file_path)
-                files_scanned += 1
+                if self.ignore_hidden and file_path.name.startswith("."):
+                    continue
+                if extensions is None or file_path.suffix.lower() in extensions:
+                    self._store_file(cursor, file_path)
+                    files_scanned += 1
 
                 if files_scanned % self.batch_size == 0:
                     conn.commit()
