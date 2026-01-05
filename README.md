@@ -16,6 +16,10 @@ A Python library to find and manage duplicate files. It scans directories, ident
 - 🖥️ **Command-line interface** for easy automation
 - 📊 **Statistics** about scanned files and duplicates
 
+## Documentation
+
+[Documentation is hosted on readthedocs.org](https://dup-file-finder.readthedocs.io/en/latest/)
+
 ## Installation
 
 From PyPi
