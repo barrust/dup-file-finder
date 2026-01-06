@@ -22,10 +22,8 @@ classifiers = [
 dependencies = []
 dynamic = ["version"]
 
-
 [project.scripts]
 dupFileFinder = "dup_file_finder.cli:main"
-
 
 [tool.setuptools.dynamic]
 version = { attr = "dup_file_finder.__version__" }
@@ -34,6 +32,7 @@ version = { attr = "dup_file_finder.__version__" }
 Homepage = "https://github.com/barrust/dup-file-finder"
 Repository = "https://github.com/barrust/dup-file-finder"
 Bug-tracker = "https://github.com/barrust/dup-file-finder/issues"
+Documentation = "https://dup-file-finder.readthedocs.io/"
 
 [tool.pep8]
 max-line-length = 120
@@ -82,8 +81,6 @@ exclude = [
     "site-packages",
     "venv",
 ]
-
-# Same as Black.
 line-length = 120
 indent-width = 4
 target-version = "py310"
@@ -107,34 +104,27 @@ select = [
     "I",
 ]
 ignore = []
-
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
-
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.
 quote-style = "double"
-
 # Like Black, indent with spaces, rather than tabs.
 indent-style = "space"
-
 # Like Black, respect magic trailing commas.
 skip-magic-trailing-comma = false
-
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-
 # Enable auto-formatting of code examples in docstrings. Markdown,
 # reStructuredText code/literal blocks and doctests are all supported.
 #
 # This is currently disabled by default, but it is planned for this
 # to be opt-out in the future.
 docstring-code-format = false
-
 # Set the line length limit used when formatting code snippets in
 # docstrings.
 #

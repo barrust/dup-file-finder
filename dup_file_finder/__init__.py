@@ -2,7 +2,7 @@
 Deduper - A Python library to find and manage duplicate files.
 """
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 from .core import DuplicateFileFinder, DuplicateGroup
 

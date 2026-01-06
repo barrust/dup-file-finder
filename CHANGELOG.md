@@ -13,8 +13,10 @@ dups = dff.get_duplicate_groups()
 for dg in dups:
     print(dg.total_size())
     print(dg.wasted_space())
-    dg.delete_duplicates_alt(keep_idx=0)  # keeps idx 0
+    dg.delete_duplicates_alt(keep_idx=0)
 ```
+
+* Add documentation on [readthedocs.io](https://dup-file-finder.readthedocs.io/)
 
 ### Version 0.0.2 (v2025-12-30-2000)
 
