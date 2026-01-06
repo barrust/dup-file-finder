@@ -1,6 +1,6 @@
 # Changelog
 
-### Version 0.0.3 ()
+### Version 0.0.3 (2025-01-06)
 
 * Add `GroupDuplicates` class to make library usage easier
 
